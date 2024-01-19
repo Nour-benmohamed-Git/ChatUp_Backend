@@ -1,4 +1,4 @@
-import {Router} from 'express';
+import { Router } from 'express';
 import userRouter from '../routes/user.routes';
 import groupRouter from '../routes/group.routes';
 import messageRouter from '../routes/message.routes';

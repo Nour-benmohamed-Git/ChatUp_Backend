@@ -9,13 +9,31 @@ export class UserService {
     this.userDAO = new UserDAO();
   }
 
-  async getUserById(id: number): Promise<UserDTO | undefined> {
-    const user = await this.userDAO.getUserById(id);
-    return user ? new UserDTO(user) : undefined;
+  async getUsers(): Promise<UserDTO[]> {
+    const users = await this.userDAO.getUsers();
+    return users.map((user) => new UserDTO(user));
+  }
+
+  async getUser(id: number): Promise<UserDTO | null> {
+    const user = await this.userDAO.getUser(id);
+    return user ? new UserDTO(user) : null;
   }
 
   async createUser(userData: Partial<User>): Promise<UserDTO> {
     const user = await this.userDAO.createUser(userData);
     return new UserDTO(user);
+  }
+
+  async updateUser(
+    id: number,
+    userData: Partial<User>
+  ): Promise<UserDTO | null> {
+    const updatedUser = await this.userDAO.updateUser(id, userData);
+    return updatedUser ? new UserDTO(updatedUser) : null;
+  }
+
+  async deleteUser(id: number): Promise<UserDTO | null> {
+    const deletedUser = await this.userDAO.deleteUser(id);
+    return deletedUser ? new UserDTO(deletedUser) : null;
   }
 }

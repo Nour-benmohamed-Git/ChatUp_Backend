@@ -1,10 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, ManyToMany, JoinTable, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
-import { User } from "./User";
-import { Message } from "./Message";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToMany,
+  JoinTable,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from './User';
+import { Message } from './Message';
 
 @Entity()
 export class ChatSession {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -12,7 +19,7 @@ export class ChatSession {
   @JoinTable()
   participants: User[];
 
-  @OneToMany(() => Message, message => message.chatSession)
+  @OneToMany(() => Message, (message) => message.chatSession)
   messages: Message[];
 
   @CreateDateColumn()
@@ -20,5 +27,4 @@ export class ChatSession {
 
   @UpdateDateColumn()
   lastActiveDate: Date;
-
 }

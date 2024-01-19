@@ -1,6 +1,6 @@
 export class ChatSessionDTO {
-    id: number;
-    participantIds: number[];
-    creationDate: Date;
-    lastActiveDate: Date;
-  }
+  id: number;
+  participantIds: number[];
+  creationDate: Date;
+  lastActiveDate: Date;
+}

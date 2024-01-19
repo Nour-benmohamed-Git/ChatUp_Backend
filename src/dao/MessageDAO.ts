@@ -6,10 +6,14 @@ export class MessageDAO {
   private messageRepository: Repository<Message>;
 
   constructor() {
-    this.messageRepository =  AppDataSource.getRepository(Message);
+    this.messageRepository = AppDataSource.getRepository(Message);
   }
 
-  async getMessageById(id: number): Promise<Message | undefined> {
+  async getMessages(): Promise<Message[]> {
+    return this.messageRepository.find();
+  }
+
+  async getMessage(id: number): Promise<Message | null> {
     return this.messageRepository.findOne({ where: { id: id } });
   }
 
@@ -18,5 +22,32 @@ export class MessageDAO {
     return this.messageRepository.save(message);
   }
 
-  // Add other methods like updateMessage, deleteMessage, etc.
+  async updateMessage(
+    id: number,
+    messageData: Partial<Message>
+  ): Promise<Message | null> {
+    const messageToUpdate = await this.messageRepository.findOne({
+      where: { id: id },
+    });
+
+    if (messageToUpdate) {
+      this.messageRepository.merge(messageToUpdate, messageData);
+      return this.messageRepository.save(messageToUpdate);
+    }
+
+    return null;
+  }
+
+  async deleteMessage(id: number): Promise<Message | null> {
+    const messageToDelete = await this.messageRepository.findOne({
+      where: { id: id },
+    });
+
+    if (messageToDelete) {
+      await this.messageRepository.remove(messageToDelete);
+      return messageToDelete;
+    }
+
+    return null;
+  }
 }

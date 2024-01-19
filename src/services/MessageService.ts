@@ -9,14 +9,19 @@ export class MessageService {
     this.messageDAO = new MessageDAO();
   }
 
-  async getMessageById(id: number): Promise<MessageDTO | undefined> {
-    const message = await this.messageDAO.getMessageById(id);
+  async getMessages(): Promise<MessageDTO[]> {
+    const messages = await this.messageDAO.getMessages();
+    return messages.map((message) => this.mapMessageToDTO(message));
+  }
+  
+  async getMessage(id: number): Promise<MessageDTO | null> {
+    const message = await this.messageDAO.getMessage(id);
 
     if (message) {
       return this.mapMessageToDTO(message);
     }
 
-    return undefined;
+    return null;
   }
 
   async createMessage(messageDTO: MessageDTO): Promise<MessageDTO> {
@@ -26,9 +31,29 @@ export class MessageService {
     return this.mapMessageToDTO(createdMessage);
   }
 
-  // Add other methods like updateMessage, deleteMessage, etc.
+  async updateMessage(
+    id: number,
+    messageDTO: MessageDTO
+  ): Promise<MessageDTO | null> {
+    const updatedMessage = await this.messageDAO.updateMessage(id, messageDTO);
 
-  // Helper method to map Message entity to MessageDTO
+    if (updatedMessage) {
+      return this.mapMessageToDTO(updatedMessage);
+    }
+
+    return null;
+  }
+
+  async deleteMessage(id: number): Promise<MessageDTO | null> {
+    const deletedMessage = await this.messageDAO.deleteMessage(id);
+
+    if (deletedMessage) {
+      return this.mapMessageToDTO(deletedMessage);
+    }
+
+    return null;
+  }
+
   private mapMessageToDTO(message: Message): MessageDTO {
     return {
       id: message.id,
@@ -43,7 +68,6 @@ export class MessageService {
     };
   }
 
-  // Helper method to map MessageDTO to Message entity
   private mapDTOToMessage(messageDTO: MessageDTO): Partial<Message> {
     return {
       content: messageDTO.content,

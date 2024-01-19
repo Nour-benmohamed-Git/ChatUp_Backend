@@ -9,21 +9,36 @@ export class NotificationService {
     this.notificationDAO = new NotificationDAO();
   }
 
+  async getNotifications(): Promise<NotificationDTO[]> {
+    const notifications = await this.notificationDAO.getNotifications();
+    return notifications.map(this.mapNotificationToDTO);
+  }
+
+  async getNotification(id: number): Promise<NotificationDTO | null> {
+    const notification = await this.notificationDAO.getNotification(id);
+    if (notification) {
+      return this.mapNotificationToDTO(notification);
+    }
+    return null;
+  }
+
   async createNotification(dto: NotificationDTO): Promise<Notification> {
     const notificationData = this.mapDTOToNotification(dto);
     return this.notificationDAO.createNotification(notificationData);
   }
 
-  async getNotificationById(id: number): Promise<NotificationDTO | undefined> {
-    const notification = await this.notificationDAO.getNotificationById(id);
-
-    if (notification) {
-      return this.mapNotificationToDTO(notification);
+  async updateNotification(id: number, dto: NotificationDTO): Promise<NotificationDTO | null> {
+    const notificationData = this.mapDTOToNotification(dto);
+    const updatedNotification = await this.notificationDAO.updateNotification(id, notificationData);
+    if (updatedNotification) {
+      return this.mapNotificationToDTO(updatedNotification);
     }
-
-    return undefined;
+    return null;
   }
 
+  async deleteNotification(id: number): Promise<boolean> {
+    return this.notificationDAO.deleteNotification(id);
+  }
 
   private mapDTOToNotification(dto: NotificationDTO): Partial<Notification> {
     return {

@@ -1,10 +1,16 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, OneToMany, CreateDateColumn } from "typeorm";
-import { User } from "./User";
-import { Message } from "./Message";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToMany,
+  OneToMany,
+  CreateDateColumn,
+} from 'typeorm';
+import { User } from './User';
+import { Message } from './Message';
 
 @Entity()
 export class Group {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -14,10 +20,9 @@ export class Group {
   @CreateDateColumn()
   timestamp: Date;
 
-  @ManyToMany(() => User, user => user.groups)
+  @ManyToMany(() => User, (user) => user.groups)
   members: User[];
 
-  @OneToMany(() => Message, message => message.group)
+  @OneToMany(() => Message, (message) => message.group)
   messages: Message[];
-
 }
