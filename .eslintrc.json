@@ -17,15 +17,20 @@
   ],
   "rules": {
     // "indent": ["error", 2], // or 4 based on your preference
-    "linebreak-style": ["error", "unix"],
+    // "linebreak-style": ["error", "unix"],
     "quotes": ["error", "single"],
     "semi": ["error", "always"],
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }
+    ],
     "no-console": "off",
     "no-process-exit": "warn",
     "node/no-unsupported-features/es-syntax": "off",
-    "@typescript-eslint/no-unused-vars": ["warn"], // If using TypeScript
-    "@typescript-eslint/no-explicit-any": "off" // If using TypeScript
-    
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }
+    ],
+    "@typescript-eslint/no-explicit-any": "off"
   }
 }

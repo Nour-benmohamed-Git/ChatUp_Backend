@@ -22,10 +22,7 @@ export class UserDAO {
     return this.userRepository.save(newUser);
   }
 
-  async updateUser(
-    id: number,
-    userData: Partial<User>
-  ): Promise<User | null> {
+  async updateUser(id: number, userData: Partial<User>): Promise<User | null> {
     const userToUpdate = await this.userRepository.findOne({
       where: { id: id },
     });
@@ -49,5 +46,13 @@ export class UserDAO {
     }
 
     return null;
+  }
+
+  async findUserByUsername(username: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { username: username } });
+  }
+
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email: email } });
   }
 }

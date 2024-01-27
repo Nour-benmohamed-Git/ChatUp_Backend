@@ -36,4 +36,14 @@ export class UserService {
     const deletedUser = await this.userDAO.deleteUser(id);
     return deletedUser ? new UserDTO(deletedUser) : null;
   }
+  
+  async findUserByEmail(email: string): Promise<UserDTO | null> {
+    const user = await this.userDAO.findUserByEmail(email);
+    return user ? new UserDTO(user) : null;
+  }
+
+  async findUserByUsername(username: string): Promise<UserDTO | null> {
+    const user = await this.userDAO.findUserByUsername(username);
+    return user ? new UserDTO(user) : null;
+  }
 }

@@ -1,24 +1,27 @@
 import cors from 'cors';
 import express from 'express';
-import helmet from 'helmet';
 import routes from './configs/routes-config';
+import { authMiddleware } from './utils/middleware/authMiddleware ';
 
 class App {
   public server;
   constructor() {
     this.server = express();
     this.middlewares();
-    this.routes();
+    this.publicRoutes();
+    this.privateRoutes();
   }
 
   middlewares() {
     this.server.use(express.json());
-    // Basic security middlewares
-    this.server.use(cors()); // Enable CORS
-    this.server.use(helmet()); // Helps secure Express apps by setting various HTTP headers
+    this.server.use(cors());
   }
-  routes() {
-    this.server.use(routes);
+  publicRoutes() {
+    this.server.use('/api', routes.publicRoutes);
+    this.server.use(authMiddleware);
+  }
+  privateRoutes() {
+    this.server.use('/api', routes.privateRoutes);
   }
 }
 

@@ -1,16 +1,22 @@
 import { Router } from 'express';
-import userRouter from '../routes/user.routes';
+import authenticationRouter from '../routes/authentication.routes';
+import chatSessionRouter from '../routes/chatSession.routes';
 import groupRouter from '../routes/group.routes';
 import messageRouter from '../routes/message.routes';
-import chatSessionRouter from '../routes/chatSession.routes';
 import notificationRouter from '../routes/notification.routes';
+import userRouter from '../routes/user.routes';
 
-const routes = Router();
+const publicRoutes = Router();
 
-routes.use(userRouter);
-routes.use(groupRouter);
-routes.use(messageRouter);
-routes.use(chatSessionRouter);
-routes.use(notificationRouter);
+publicRoutes.use(authenticationRouter);
 
+const privateRoutes = Router();
+
+privateRoutes.use(userRouter);
+privateRoutes.use(groupRouter);
+privateRoutes.use(messageRouter);
+privateRoutes.use(chatSessionRouter);
+privateRoutes.use(notificationRouter);
+
+const routes = { privateRoutes: privateRoutes, publicRoutes: publicRoutes };
 export default routes;
