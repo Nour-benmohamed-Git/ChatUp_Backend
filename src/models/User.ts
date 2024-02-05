@@ -8,12 +8,12 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { UserStatus } from '../utils/constants/UserStatus';
+import { UserStatus } from '../utils/constants/enums';
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { ChatSession } from './ChatSession';
-import { Group } from './Group';
 import { Message } from './Message';
 import { Notification } from './Notification';
+import { Group } from './Group';
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -62,7 +62,8 @@ export class User {
   @OneToMany(() => ChatSession, (chatSession) => chatSession.participants)
   chatSessions: ChatSession[];
 
-  @ManyToMany(() => Group, (group) => group.members)
+  @ManyToMany(() => Group, group => group.members)
+  //specifies that a join table should be used to store the association between users and groups.
   @JoinTable()
   groups: Group[];
 

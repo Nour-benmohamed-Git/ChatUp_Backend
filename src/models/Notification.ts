@@ -1,10 +1,11 @@
 import {
+  BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { User } from './User';
 
 @Entity()
@@ -18,12 +19,17 @@ export class Notification {
   @Column('text')
   message: string;
 
-  @CreateDateColumn()
-  timestamp: Date;
+  @Column({ type: 'bigint' })
+  timestamp: number;
 
   @ManyToOne(() => User, (user) => user.notifications)
   receiver: User;
 
   @Column({ default: false })
   readStatus: boolean;
+
+  @BeforeInsert()
+  beforeInsert() {
+    this.timestamp = toUnixTimestamp(new Date());
+  }
 }

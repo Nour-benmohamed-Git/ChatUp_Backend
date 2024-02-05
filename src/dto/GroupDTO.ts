@@ -1,7 +1,7 @@
 export interface GroupDTO {
-  id?: number;
+  id: number;
   groupName: string;
-  timestamp?: Date;
+  timestamp: Date;
   memberIds: number[];
   messageIds?: number[];
 }

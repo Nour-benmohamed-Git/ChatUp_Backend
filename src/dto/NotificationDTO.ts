@@ -2,7 +2,7 @@ export interface NotificationDTO {
   id?: number;
   type: string;
   message: string;
-  timestamp?: Date;
+  timestamp?: number;
   receiverId: number;
   readStatus?: boolean;
 }

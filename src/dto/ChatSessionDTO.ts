@@ -1,6 +1,11 @@
 export class ChatSessionDTO {
   id: number;
-  participantIds: number[];
-  creationDate: Date;
-  lastActiveDate: Date;
+  title: string;
+  participantsData: { [userId: string]: string };
+  creationDate: number;
+  lastActiveDate: number;
+  lastMessage?: {
+    content: string;
+    timestamp: number;
+  };
 }

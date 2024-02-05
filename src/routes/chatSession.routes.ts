@@ -9,6 +9,14 @@ chatSessionRouter.get(
   chatSessionController.getChatSession
 );
 chatSessionRouter.post(
+  '/chat-sessions/by-participants',
+  chatSessionController.getChatSessionByParticipants
+);
+chatSessionRouter.get(
+  '/current-user-chat-sessions',
+  chatSessionController.getCurrentUserChatSessions
+);
+chatSessionRouter.post(
   '/chat-sessions',
   chatSessionController.createChatSession
 );

@@ -31,7 +31,7 @@ export class UserDAO {
       this.userRepository.merge(userToUpdate, userData);
       return this.userRepository.save(userToUpdate);
     }
-
+    
     return null;
   }
 

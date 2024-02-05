@@ -14,7 +14,28 @@ export class MessageDAO {
   }
 
   async getMessage(id: number): Promise<Message | null> {
-    return this.messageRepository.findOne({ where: { id: id } });
+    return this.messageRepository.findOne({
+      where: { id: id },
+    });
+  }
+
+  async getMessagesByChatSessionId(chatSessionId: number): Promise<Message[]> {
+    const messages = await this.messageRepository
+      .createQueryBuilder('message')
+      .leftJoin('message.sender', 'sender')
+      .leftJoin('message.receiver', 'receiver')
+      .select([
+        'message.id AS id',
+        'message.content AS content',
+        'message.timestamp AS timestamp',
+        'message.edited AS edited',
+        'message.readStatus AS readStatus',
+        'sender.id AS senderId',
+        'message.chatSession.id AS chatSessionId',
+      ])
+      .where('message.chatSession = :chatSessionId', { chatSessionId })
+      .getRawMany();
+    return messages;
   }
 
   async createMessage(messageData: Partial<Message>): Promise<Message> {
@@ -28,8 +49,8 @@ export class MessageDAO {
   ): Promise<Message | null> {
     const messageToUpdate = await this.messageRepository.findOne({
       where: { id: id },
+      relations: ['chatSession', 'group'],
     });
-
     if (messageToUpdate) {
       this.messageRepository.merge(messageToUpdate, messageData);
       return this.messageRepository.save(messageToUpdate);
@@ -41,13 +62,21 @@ export class MessageDAO {
   async deleteMessage(id: number): Promise<Message | null> {
     const messageToDelete = await this.messageRepository.findOne({
       where: { id: id },
+      relations: ['chatSession', 'group'],
     });
-
     if (messageToDelete) {
-      await this.messageRepository.remove(messageToDelete);
+      await this.messageRepository.delete(id);
       return messageToDelete;
     }
-
     return null;
+  }
+
+  async getChatSessionLastMessage(
+    chatSessionId: number
+  ): Promise<Message | null> {
+    return this.messageRepository.findOne({
+      where: { chatSession: { id: chatSessionId } },
+      order: { timestamp: 'DESC' },
+    });
   }
 }

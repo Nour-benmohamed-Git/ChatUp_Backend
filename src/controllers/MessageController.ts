@@ -9,7 +9,7 @@ export class MessageController {
     this.messageService = new MessageService();
   }
 
-  async getMessages(_req: Request, res: Response): Promise<void> {
+  getMessages = async (_req: Request, res: Response): Promise<void> => {
     try {
       const messages = await this.messageService.getMessages();
       res.json(messages);
@@ -17,10 +17,10 @@ export class MessageController {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  };
 
-  async getMessage(req: Request, res: Response): Promise<void> {
-    const messageId = Number(req.params.id);
+  getMessage = async (req: Request, res: Response): Promise<void> => {
+    const messageId = Number.parseInt(req.params.id, 10);
     const message = await this.messageService.getMessage(messageId);
 
     if (message) {
@@ -28,9 +28,24 @@ export class MessageController {
     } else {
       res.status(404).json({ error: 'Message not found' });
     }
-  }
+  };
 
-  async createMessage(req: Request, res: Response): Promise<void> {
+  getMessagesByChatSessionId = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    const chatSessionId = Number.parseInt(req.params.id, 10);
+    try {
+      const messages =
+        await this.messageService.getMessagesByChatSessionId(chatSessionId);
+      res.json({ data: messages });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  createMessage = async (req: Request, res: Response): Promise<void> => {
     const messageDTO: MessageDTO = req.body;
 
     try {
@@ -41,10 +56,10 @@ export class MessageController {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  };
 
-  async updateMessage(req: Request, res: Response): Promise<void> {
-    const messageId = Number(req.params.id);
+  updateMessage = async (req: Request, res: Response): Promise<void> => {
+    const messageId = Number.parseInt(req.params.id, 10);
     const messageDTO: MessageDTO = req.body;
 
     try {
@@ -61,15 +76,14 @@ export class MessageController {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  };
 
-  async deleteMessage(req: Request, res: Response): Promise<void> {
-    const messageId = Number(req.params.id);
-
+  deleteMessage = async (req: Request, res: Response): Promise<void> => {
+    const messageId = Number.parseInt(req.params.id, 10);
     try {
       const deletedMessage = await this.messageService.deleteMessage(messageId);
       if (deletedMessage) {
-        res.json(deletedMessage);
+        res.json({ data: deletedMessage });
       } else {
         res.status(404).json({ error: 'Message not found' });
       }
@@ -77,5 +91,5 @@ export class MessageController {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  };
 }

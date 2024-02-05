@@ -1,4 +1,4 @@
-import { UserStatus } from '../utils/constants/UserStatus';
+import { UserStatus } from '../utils/constants/enums';
 import { User } from '../models/User';
 
 export class UserDTO {
@@ -9,7 +9,7 @@ export class UserDTO {
   lastName: string;
   phone: string;
   status: UserStatus;
-  profileInfo?: string;
+  profileInfo: string;
   createdAt: number;
   updatedAt: number;
 

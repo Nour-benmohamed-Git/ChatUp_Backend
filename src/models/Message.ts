@@ -1,14 +1,15 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
+  BeforeInsert,
   Column,
-  ManyToOne,
-  CreateDateColumn,
+  Entity,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './User';
-import { Group } from './Group';
+import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { ChatSession } from './ChatSession';
+import { Group } from './Group';
+import { User } from './User';
 
 @Entity()
 export class Message {
@@ -18,8 +19,8 @@ export class Message {
   @Column('text')
   content: string;
 
-  @CreateDateColumn()
-  timestamp: Date;
+  @Column({ type: 'bigint' })
+  timestamp: number;
 
   @Column({ default: false })
   edited: boolean;
@@ -43,4 +44,9 @@ export class Message {
 
   @ManyToOne(() => ChatSession, (chatSession) => chatSession.messages)
   chatSession: ChatSession;
+
+  @BeforeInsert()
+  beforeInsert() {
+    this.timestamp = toUnixTimestamp(new Date());
+  }
 }

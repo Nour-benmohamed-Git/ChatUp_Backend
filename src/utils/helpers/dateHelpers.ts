@@ -1,10 +1,5 @@
 import { parseISO } from 'date-fns';
 
-/**
- * Convert a date to Unix timestamp.
- * @param {Date|string} date - The input date.
- * @returns {number|null} - The Unix timestamp or null if the input is invalid.
- */
 const toUnixTimestamp = (date: Date | string) => {
   try {
     const parsedDate = typeof date === 'string' ? parseISO(date) : date;

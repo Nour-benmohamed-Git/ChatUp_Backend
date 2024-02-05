@@ -1,6 +1,6 @@
-import { Notification } from '../models/Notification';
 import { NotificationDAO } from '../dao/NotificationDAO';
 import { NotificationDTO } from '../dto/NotificationDTO';
+import { Notification } from '../models/Notification';
 
 export class NotificationService {
   private notificationDAO: NotificationDAO;
@@ -42,9 +42,9 @@ export class NotificationService {
 
   private mapDTOToNotification(dto: NotificationDTO): Partial<Notification> {
     return {
-      type: dto.type,
+     
       message: dto.message,
-      timestamp: dto.timestamp || new Date(),
+      timestamp: dto.timestamp,
       readStatus: dto.readStatus,
     };
   }

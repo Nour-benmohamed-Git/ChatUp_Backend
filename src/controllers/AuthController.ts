@@ -40,7 +40,7 @@ export class AuthController {
         firstName,
         lastName,
         phone,
-        profileInfo
+        profileInfo,
       });
       res.status(201).json({ data: newUser });
     } catch (error) {
@@ -58,6 +58,20 @@ export class AuthController {
         res.json({ data: user });
       } else {
         res.status(401).json({ error: 'Invalid credentials' });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+  getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    try {
+      const user = await this.authService.getCurrentUser(token);
+      if (user) {
+        res.json({ data: user });
+      } else {
+        res.status(401).json({ error: 'Invalid token' });
       }
     } catch (error) {
       console.error(error);

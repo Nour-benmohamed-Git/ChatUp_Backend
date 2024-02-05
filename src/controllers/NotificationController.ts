@@ -20,7 +20,7 @@ export class NotificationController {
   }
 
   async getNotification(req: Request, res: Response): Promise<void> {
-    const notificationId = Number(req.params.id);
+    const notificationId = Number.parseInt(req.params.id,10);
     const notification = await this.notificationService.getNotification(notificationId);
 
     if (notification) {
@@ -43,7 +43,7 @@ export class NotificationController {
   }
 
   async updateNotification(req: Request, res: Response): Promise<void> {
-    const notificationId = Number(req.params.id);
+    const notificationId = Number.parseInt(req.params.id,10);
     const dto = req.body as NotificationDTO;
 
     try {
@@ -60,7 +60,7 @@ export class NotificationController {
   }
 
   async deleteNotification(req: Request, res: Response): Promise<void> {
-    const notificationId = Number(req.params.id);
+    const notificationId = Number.parseInt(req.params.id,10);
 
     try {
       const isDeleted = await this.notificationService.deleteNotification(notificationId);
