@@ -1,4 +1,5 @@
 import { ChatSessionDAO } from '../dao/ChatSessionDAO';
+import { DeletedChatSessionDAO } from '../dao/DeletedChatSessionDAO';
 import { MessageDAO } from '../dao/MessageDAO';
 import { UserDAO } from '../dao/UserDAO';
 import { ChatSessionDTO } from '../dto/ChatSessionDTO';
@@ -9,28 +10,13 @@ export class ChatSessionService {
   private chatSessionDAO: ChatSessionDAO;
   private userDAO: UserDAO;
   private messageDAO: MessageDAO;
+  private deletedChatSessionDAO: DeletedChatSessionDAO;
 
   constructor() {
     this.chatSessionDAO = new ChatSessionDAO();
     this.userDAO = new UserDAO();
     this.messageDAO = new MessageDAO();
-  }
-
-  async getChatSessions(): Promise<ChatSessionDTO[]> {
-    const chatSessions = await this.chatSessionDAO.getChatSessions();
-    const chatSessionDTOs = await Promise.all(
-      chatSessions.map((chatSession) => this.mapChatSessionToDTO(chatSession))
-    );
-    return chatSessionDTOs;
-  }
-
-  async getChatSession(id: number): Promise<ChatSessionDTO | null> {
-    const chatSession = await this.chatSessionDAO.getChatSession(id);
-    if (chatSession) {
-      const chatSessionDTO = await this.mapChatSessionToDTO(chatSession);
-      return chatSessionDTO;
-    }
-    return null;
+    this.deletedChatSessionDAO = new DeletedChatSessionDAO();
   }
 
   async getCurrentUserChatSessions(token: string): Promise<ChatSessionDTO[]> {
@@ -38,26 +24,32 @@ export class ChatSessionService {
     const chatSessions =
       await this.chatSessionDAO.getChatSessionsByUserId(userId);
     const chatSessionDTOs = await Promise.all(
-      chatSessions.map((chatSession) => this.mapChatSessionToDTO(chatSession))
+      chatSessions.map((chatSession) =>
+        this.mapChatSessionToDTO(chatSession, userId)
+      )
     );
     return chatSessionDTOs;
   }
 
-  async getChatSessionsByParticipants(
+  async getChatSessionByParticipants(
     secondMemberId: number,
     token: string
   ): Promise<ChatSessionDTO | null> {
     const userId = getUserIdFromToken(token);
     const currentUser = await this.userDAO.getUser(userId);
     const secondMember = await this.userDAO.getUser(secondMemberId);
-    const chatSession = await this.chatSessionDAO.getChatSessionsByParticipants(
-      [userId, secondMemberId]
-    );
+    const chatSession = await this.chatSessionDAO.getChatSessionByParticipants([
+      userId,
+      secondMemberId,
+    ]);
     if (chatSession) {
-      return await this.mapChatSessionToDTO({
-        ...chatSession,
-        participants: [currentUser, secondMember],
-      });
+      return await this.mapChatSessionToDTO(
+        {
+          ...chatSession,
+          participants: [currentUser, secondMember],
+        },
+        userId
+      );
     }
     return null;
   }
@@ -71,14 +63,6 @@ export class ChatSessionService {
       const currentUser = await this.userDAO.getUser(userId);
       const secondMember = await this.userDAO.getUser(secondMemberId);
 
-      if (!currentUser || !secondMember) {
-        console.error('Invalid user(s) in createChatSession:', {
-          currentUser,
-          secondMember,
-        });
-        return null;
-      }
-
       const createdChatSession = await this.chatSessionDAO.createChatSession({
         participants: [currentUser, secondMember],
       });
@@ -88,46 +72,75 @@ export class ChatSessionService {
         return null;
       }
 
-      return this.mapChatSessionToDTO(createdChatSession);
+      return this.mapChatSessionToDTO(createdChatSession, userId);
     } catch (error) {
       console.error('Error in createChatSession:', error);
       return null;
     }
   }
-  async updateChatSession(
+  async restoreChatSession(
     id: number,
-    chatSessionData: Partial<ChatSessionDTO>
+    token: string
   ): Promise<ChatSessionDTO | null> {
-    const updatedChatSession = await this.chatSessionDAO.updateChatSession(
-      id,
-      chatSessionData
+    const userId = getUserIdFromToken(token);
+    const chatSession = await this.chatSessionDAO.getChatSession(id);
+    const isDeletedChatSession =
+      await this.deletedChatSessionDAO.findDeletedChatSessionByCurrentUserIdAndChatSessionId(
+        userId,
+        chatSession.id
+      );
+    const isRemoved = await this.deletedChatSessionDAO.deleteDeletedChatSession(
+      isDeletedChatSession.id
     );
-    if (updatedChatSession) {
-      return await this.mapChatSessionToDTO(updatedChatSession);
+    if (isRemoved) {
+      return await this.mapChatSessionToDTO(chatSession, userId);
     }
     return null;
   }
 
-  async deleteChatSession(id: number): Promise<ChatSessionDTO | null> {
-    const deletedChatSession = await this.chatSessionDAO.deleteChatSession(id);
+  async deleteChatSession(
+    id: number,
+    token: string
+  ): Promise<ChatSessionDTO | null> {
+    const userId = getUserIdFromToken(token);
+    const currentUser = await this.userDAO.getUser(userId);
+    let deletedChatSession;
+    deletedChatSession = await this.chatSessionDAO.softDeleteChatSession(
+      id,
+      currentUser
+    );
+    const count =
+      await this.deletedChatSessionDAO.getDeletedChatSessionCountByChatSessionId(
+        id
+      );
+    console.log('count', count);
+    if (count === 2 || deletedChatSession.participants.length === 1) {
+      deletedChatSession = await this.chatSessionDAO.hardDeleteChatSession(id);
+    }
     if (deletedChatSession) {
-      return await this.mapChatSessionToDTO(deletedChatSession);
+      return await this.mapChatSessionToDTO(deletedChatSession, userId);
     }
 
     return null;
   }
   private async mapChatSessionToDTO(
-    chatSession: Partial<ChatSession>
+    chatSession: Partial<ChatSession>,
+    currentUserId: number
   ): Promise<ChatSessionDTO> {
     const lastMessage = await this.messageDAO.getChatSessionLastMessage(
       chatSession.id
     );
+    const isDeletedChatSession =
+      await this.deletedChatSessionDAO.findDeletedChatSessionByCurrentUserIdAndChatSessionId(
+        currentUserId,
+        chatSession.id
+      );
     return {
       id: chatSession.id,
       title: chatSession.title,
-      participantsData: chatSession.participants.reduce(
+      participantsData: chatSession?.participants?.reduce(
         (acc, participant) => {
-          acc[participant.id] = participant.username;
+          acc[participant?.id] = participant?.username;
           return acc;
         },
         {} as { [userId: string]: string }
@@ -140,6 +153,7 @@ export class ChatSessionService {
             timestamp: lastMessage.timestamp,
           }
         : null,
+      deletedByCurrentUser: isDeletedChatSession ? true : false,
     };
   }
 }

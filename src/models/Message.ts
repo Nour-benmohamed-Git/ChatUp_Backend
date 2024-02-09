@@ -42,7 +42,10 @@ export class Message {
   @JoinColumn({ name: 'groupId' })
   group?: Group;
 
-  @ManyToOne(() => ChatSession, (chatSession) => chatSession.messages)
+  @ManyToOne(() => ChatSession, (chatSession) => chatSession.messages, {
+    onDelete: 'CASCADE',
+    orphanedRowAction: 'delete',
+  })
   chatSession: ChatSession;
 
   @BeforeInsert()

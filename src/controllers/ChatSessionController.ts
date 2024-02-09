@@ -1,28 +1,10 @@
 import { Request, Response } from 'express';
-import { ChatSessionDTO } from '../dto/ChatSessionDTO';
 import { ChatSessionService } from '../services/ChatSessionService';
 
 export class ChatSessionController {
   private chatSessionService: ChatSessionService;
-
   constructor() {
     this.chatSessionService = new ChatSessionService();
-  }
-
-  async getChatSessions(_req: Request, res: Response): Promise<void> {
-    const chatSessions = await this.chatSessionService.getChatSessions();
-    res.json({ data: chatSessions });
-  }
-
-  async getChatSession(req: Request, res: Response): Promise<void> {
-    const chatSessionId = Number.parseInt(req.params.id, 10);
-    const chatSession =
-      await this.chatSessionService.getChatSession(chatSessionId);
-    if (chatSession) {
-      res.json({ data: chatSession });
-    } else {
-      res.status(404).json({ error: 'Chat session not found' });
-    }
   }
 
   getCurrentUserChatSessions = async (
@@ -52,7 +34,7 @@ export class ChatSessionController {
     const secondMemberId: number = req.body.secondMemberId;
     try {
       const chatSession =
-        await this.chatSessionService.getChatSessionsByParticipants(
+        await this.chatSessionService.getChatSessionByParticipants(
           secondMemberId,
           token
         );
@@ -72,7 +54,7 @@ export class ChatSessionController {
     const secondMemberId: number = req.body.secondMemberId;
     try {
       const existingChatSession =
-        await this.chatSessionService.getChatSessionsByParticipants(
+        await this.chatSessionService.getChatSessionByParticipants(
           secondMemberId,
           token
         );
@@ -92,12 +74,13 @@ export class ChatSessionController {
     }
   };
 
-  updateChatSession = async (req: Request, res: Response): Promise<void> => {
+  restoreChatSession = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
     const id = Number.parseInt(req.params.id, 10);
-    const chatSessionDTO: ChatSessionDTO = req.body;
+
     try {
       const updatedChatSession =
-        await this.chatSessionService.updateChatSession(id, chatSessionDTO);
+        await this.chatSessionService.restoreChatSession(id, token);
 
       if (updatedChatSession) {
         res.json({ data: updatedChatSession });
@@ -110,13 +93,14 @@ export class ChatSessionController {
     }
   };
 
-  async deleteChatSession(req: Request, res: Response): Promise<void> {
+  deleteChatSession = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
     const id = Number.parseInt(req.params.id, 10);
     try {
-      const isDeleted = await this.chatSessionService.deleteChatSession(id);
-
-      if (isDeleted) {
-        res.status(200).json({ message: 'Chat session deleted successfully' });
+      const deletedChatSession =
+        await this.chatSessionService.deleteChatSession(id, token);
+      if (deletedChatSession) {
+        res.status(200).json({ data: deletedChatSession });
       } else {
         res.status(404).json({ error: 'Chat session not found' });
       }
@@ -124,5 +108,5 @@ export class ChatSessionController {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  };
 }

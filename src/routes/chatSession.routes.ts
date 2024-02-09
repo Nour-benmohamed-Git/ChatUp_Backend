@@ -3,11 +3,6 @@ import { ChatSessionController } from '../controllers/ChatSessionController';
 
 const chatSessionRouter = Router();
 const chatSessionController = new ChatSessionController();
-chatSessionRouter.get('/chat-sessions', chatSessionController.getChatSessions);
-chatSessionRouter.get(
-  '/chat-sessions/:id',
-  chatSessionController.getChatSession
-);
 chatSessionRouter.post(
   '/chat-sessions/by-participants',
   chatSessionController.getChatSessionByParticipants
@@ -22,9 +17,9 @@ chatSessionRouter.post(
 );
 chatSessionRouter.put(
   '/chat-sessions/:id',
-  chatSessionController.updateChatSession
+  chatSessionController.restoreChatSession
 );
-chatSessionRouter.delete(
+chatSessionRouter.post(
   '/chat-sessions/:id',
   chatSessionController.deleteChatSession
 );

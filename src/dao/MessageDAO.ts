@@ -75,7 +75,9 @@ export class MessageDAO {
     chatSessionId: number
   ): Promise<Message | null> {
     return this.messageRepository.findOne({
-      where: { chatSession: { id: chatSessionId } },
+      where: {
+        chatSession: { id: chatSessionId },
+      },
       order: { timestamp: 'DESC' },
     });
   }

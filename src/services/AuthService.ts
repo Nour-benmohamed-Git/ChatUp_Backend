@@ -34,7 +34,7 @@ export class AuthService {
     const user = await this.userDAO.findUserByEmail(email);
     if (user && (await bcrypt.compare(password, user.password))) {
       const token = jwt.sign({ id: user.id }, this.secretKey, {
-        expiresIn: '1h',
+        expiresIn: '1d',
         algorithm: 'HS256',
       });
       return { ...new UserDTO(user), token };

@@ -11,6 +11,7 @@ import {
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { Message } from './Message';
 import { User } from './User';
+import { DeletedChatSession } from './DeletedChatSession';
 
 @Entity()
 export class ChatSession {
@@ -24,7 +25,9 @@ export class ChatSession {
   @JoinTable()
   participants: User[];
 
-  @OneToMany(() => Message, (message) => message.chatSession)
+  @OneToMany(() => Message, (message) => message.chatSession, {
+    cascade: ['remove'],
+  })
   messages: Message[];
 
   @Column({ type: 'bigint' })
@@ -43,4 +46,13 @@ export class ChatSession {
   beforeUpdate() {
     this.lastActiveDate = toUnixTimestamp(new Date());
   }
+
+  @OneToMany(
+    () => DeletedChatSession,
+    (deletedChatSession) => deletedChatSession.chatSession,
+    {
+      cascade: ['remove'],
+    }
+  )
+  deletedChatSessions: DeletedChatSession[];
 }

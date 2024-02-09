@@ -12,6 +12,7 @@ export class WebSocketServer {
   private port: string | number;
   private secretKey: string;
   private messageService: MessageService;
+  private unreadMessages: { [userId: string]: number[] };
 
   constructor(app: Express) {
     this.secretKey = process.env.SECRET_KEY!;
@@ -21,6 +22,7 @@ export class WebSocketServer {
     });
     this.port = process.env.SOCKET_PORT || 3000;
     this.messageService = new MessageService();
+    this.unreadMessages = {};
     this.listen();
   }
 
@@ -52,13 +54,13 @@ export class WebSocketServer {
             room: string;
           }) => {
             const { action, data, room } = messageData;
+            // console.log('data', data);
             switch (action) {
               case 'create':
                 {
                   const createdMessage =
                     await this.messageService.createMessage(data);
-                  console.log('create server ws', messageData);
-                  socket.to(`room-${room}`).emit('receiveMessage', {
+                  this.io.to(`room-${room}`).emit('receiveMessage', {
                     action: 'create',
                     data: {
                       id: createdMessage.id,
@@ -67,6 +69,64 @@ export class WebSocketServer {
                       ...data,
                     },
                   });
+                  this.io.to(`user-${data.senderId}`).emit('notification', {
+                    type: 'updateChatListOnAddition',
+                    data: {
+                      id: createdMessage.chatSessionId,
+                      lastMessage: {
+                        content: createdMessage.content,
+                        timestamp: createdMessage.timestamp,
+                      },
+                    },
+                  });
+                  SocketHelper.isUserInRoom(
+                    this.io,
+                    data.receiverId,
+                    `room-${room}`
+                  )
+                    .then((inRoom) => {
+                      if (inRoom) {
+                        // console.log('inRoom', inRoom);
+                        // Emit notification event to sender's personal room to update their conversation list
+                        this.io
+                          .to(`user-${data.receiverId}`)
+                          .emit('notification', {
+                            type: 'updateChatListOnAddition',
+                            data: {
+                              id: createdMessage.chatSessionId,
+                              lastMessage: {
+                                content: createdMessage.content,
+                                timestamp: createdMessage.timestamp,
+                              },
+                            },
+                          });
+                      } else {
+                        // console.log('not in room', inRoom);
+                        // Recipient is not in the room, add message to unread messages
+                        this.unreadMessages[data.receiverId] =
+                          this.unreadMessages[data.receiverId] || [];
+                        this.unreadMessages[data.receiverId].push(
+                          createdMessage.id
+                        );
+                        // Emit notification event to user's personal room
+                        this.io
+                          .to(`user-${data.receiverId}`)
+                          .emit('notification', {
+                            type: 'updateChatListOnAddition',
+                            count: this.unreadMessages[data.receiverId].length,
+                            data: {
+                              id: createdMessage.chatSessionId,
+                              lastMessage: {
+                                content: createdMessage.content,
+                                timestamp: createdMessage.timestamp,
+                              },
+                            },
+                          });
+                      }
+                    })
+                    .catch((error) => {
+                      console.error('Error checking user room:', error);
+                    });
                 }
                 break;
               case 'update':
@@ -74,11 +134,27 @@ export class WebSocketServer {
               case 'remove':
                 {
                   await this.messageService.deleteMessage(+data.content);
-                  socket.to(`room-${room}`).emit('receiveMessage', {
+                  this.io.to(`room-${room}`).emit('receiveMessage', {
                     action: 'remove',
                     data: {
                       id: +data.content,
                       chatSessionId: data.chatSessionId,
+                    },
+                  });
+
+                  const newestMessage =
+                    await this.messageService.getNewestMessage(
+                      data.chatSessionId
+                    );
+                  console.log(data);
+                  this.io.to(`user-${+data.senderId}`).emit('notification', {
+                    type: 'updateChatListOnRemoval',
+                    data: {
+                      id: data.chatSessionId,
+                      lastMessage: {
+                        content: newestMessage.content,
+                        timestamp: newestMessage.timestamp,
+                      },
                     },
                   });
                 }
@@ -87,6 +163,12 @@ export class WebSocketServer {
             }
           }
         );
+        // socket.on('markAsRead', (chatSessionId: string) => {
+        //   const userId = socket.data.userId;
+        //   if (userId && this.unreadMessages[userId]) {
+        //     this.unreadMessages[userId] = this.unreadMessages[userId].filter(id => id !== chatSessionId);
+        //   }
+        // });
       } catch (error) {
         console.error('Token verification failed:', error);
         socket.disconnect();

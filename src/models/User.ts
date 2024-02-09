@@ -14,6 +14,7 @@ import { ChatSession } from './ChatSession';
 import { Message } from './Message';
 import { Notification } from './Notification';
 import { Group } from './Group';
+import { DeletedChatSession } from './DeletedChatSession';
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -80,4 +81,7 @@ export class User {
   beforeUpdate() {
     this.updatedAt = toUnixTimestamp(new Date());
   }
+
+  @OneToMany(() => DeletedChatSession, deletedChatSession => deletedChatSession.user) // New relationship
+  deletedChatSessions: DeletedChatSession[];
 }

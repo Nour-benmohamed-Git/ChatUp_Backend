@@ -59,6 +59,13 @@ export class MessageService {
     return null;
   }
 
+  async getNewestMessage(id: number): Promise<MessageDTO | null> {
+    const newestMessage = await this.messageDAO.getChatSessionLastMessage(id);
+    if (newestMessage) {
+      return this.mapMessageToDTO(newestMessage);
+    }
+    return null;
+  }
   private mapMessageToDTO(message: Message): MessageDTO {
     return {
       id: message.id,
