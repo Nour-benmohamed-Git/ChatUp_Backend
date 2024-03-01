@@ -10,6 +10,7 @@ export class UserDTO {
   phone: string;
   status: UserStatus;
   profileInfo: string;
+  profilePicture: string;
   createdAt: number;
   updatedAt: number;
 
@@ -22,6 +23,7 @@ export class UserDTO {
     this.phone = user.phone;
     this.status = user.status;
     this.profileInfo = user.profileInfo;
+    this.profilePicture = user.profilePicture;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }

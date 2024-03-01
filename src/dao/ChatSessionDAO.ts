@@ -19,11 +19,42 @@ export class ChatSessionDAO {
   }
 
   async getChatSession(id: number): Promise<ChatSession | null> {
-    return this.chatSessionRepository.findOne({ where: { id: id } });
+    return this.chatSessionRepository.findOne({
+      where: { id: id },
+      relations: ['participants'],
+    });
   }
 
-  async getChatSessionsByUserId(userId: number): Promise<ChatSession[]> {
-    return this.chatSessionRepository
+  // async getChatSessionsByUserId(
+  //   userId: number,
+  //   offset: number,
+  //   limit: number
+  // ): Promise<{ chatSessions: ChatSession[]; total: number }> {
+  //   const [chatSessions, total] = await this.chatSessionRepository
+  //     .createQueryBuilder('chatSession')
+  //     .leftJoinAndSelect('chatSession.participants', 'participant')
+  //     .leftJoin('chatSession.deletedChatSessions', 'deletedChatSession')
+  //     .where(
+  //       'chatSession.id IN ' +
+  //         '(SELECT cs.id FROM chat_session cs ' +
+  //         'JOIN chat_session_participants_user cspu ON cs.id = cspu.chatSessionId ' +
+  //         'WHERE cspu.userId = :userId)' +
+  //         'AND (deletedChatSession.id IS NULL OR deletedChatSession.user.id <> :userId)', // Compare against a specific column of DeletedChatSession
+  //       { userId }
+  //     )
+  //     .skip(offset)
+  //     .take(limit)
+  //     .getManyAndCount();
+
+  //   return { chatSessions, total };
+  // }
+  async getChatSessionsByUserId(
+    userId: number,
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ chatSessions: ChatSession[]; total: number }> {
+    const [chatSessions, total] = await this.chatSessionRepository
       .createQueryBuilder('chatSession')
       .leftJoinAndSelect('chatSession.participants', 'participant')
       .leftJoin('chatSession.deletedChatSessions', 'deletedChatSession')
@@ -32,10 +63,16 @@ export class ChatSessionDAO {
           '(SELECT cs.id FROM chat_session cs ' +
           'JOIN chat_session_participants_user cspu ON cs.id = cspu.chatSessionId ' +
           'WHERE cspu.userId = :userId)' +
-          'AND (deletedChatSession.id IS NULL OR deletedChatSession.user.id <> :userId)', // Compare against a specific column of DeletedChatSession
-        { userId }
+          'AND (deletedChatSession.id IS NULL OR deletedChatSession.user.id <> :userId)' + // Compare against a specific column of DeletedChatSession
+          'AND (participant.username LIKE :search)', // Adding search condition
+        { userId, search: `%${search}%` } // Using wildcard (%) for partial matching
       )
-      .getMany();
+      .orderBy('chatSession.creationDate', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
+
+    return { chatSessions, total };
   }
 
   async getChatSessionByParticipants(
@@ -52,7 +89,7 @@ export class ChatSessionDAO {
           .having('COUNT(participant.id) = 1')
           .getMany();
 
-        if (uniqueChatSessions) {
+        if (uniqueChatSessions.length) {
           chatSession = await this.chatSessionRepository
             .createQueryBuilder('chatSession')
             .innerJoin('chatSession.participants', 'participant')

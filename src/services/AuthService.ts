@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { UserDAO } from '../dao/UserDAO';
 import { UserDTO } from '../dto/UserDTO';
 import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
+import { User } from '../models/User';
 
 export class AuthService {
   private userDAO: UserDAO;
@@ -48,5 +49,20 @@ export class AuthService {
       return new UserDTO(user);
     }
     return null;
+  }
+  async updateCurrentUser(
+    token: string | undefined,
+    updatedUserData: Partial<User>
+  ): Promise<UserDTO> {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('Invalid token');
+    }
+    const userToUpdate = await this.userDAO.getUser(userId);
+    if (!userToUpdate) {
+      throw new Error('User not found');
+    }
+    const updatedUser = await this.userDAO.updateUser(userId, updatedUserData);
+    return updatedUser ? new UserDTO(updatedUser) : null;
   }
 }

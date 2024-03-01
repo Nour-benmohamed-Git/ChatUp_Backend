@@ -9,11 +9,15 @@ export class UserService {
     this.userDAO = new UserDAO();
   }
 
-  async getUsers(): Promise<UserDTO[]> {
-    const users = await this.userDAO.getUsers();
-    return users.map((user) => new UserDTO(user));
+  async getUsers(
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ users: UserDTO[]; total: number }> {
+    const { users, total } = await this.userDAO.getUsers(offset, limit, search);
+    const usersDTO = users.map((user) => new UserDTO(user));
+    return { users: usersDTO, total };
   }
-
   async getUser(id: number): Promise<UserDTO | null> {
     const user = await this.userDAO.getUser(id);
     return user ? new UserDTO(user) : null;

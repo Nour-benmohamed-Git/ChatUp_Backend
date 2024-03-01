@@ -12,13 +12,20 @@ export class ChatSessionController {
     res: Response
   ): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
     try {
-      const chatSessions =
-        await this.chatSessionService.getCurrentUserChatSessions(token);
-      if (chatSessions && chatSessions.length > 0) {
-        res.json({ data: chatSessions });
-      } else {
+      const { chatSessions, total } =
+        await this.chatSessionService.getCurrentUserChatSessions(
+          token,
+          offset,
+          Number(limit),
+          String(search)
+        );
+      if (chatSessions.length === 0) {
         res.json({ data: [] });
+      } else {
+        res.json({ data: chatSessions, total: total });
       }
     } catch (error) {
       console.error(error);

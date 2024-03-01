@@ -18,9 +18,6 @@ export class ChatSession {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100, nullable: true })
-  title: string;
-
   @ManyToMany(() => User)
   @JoinTable()
   participants: User[];

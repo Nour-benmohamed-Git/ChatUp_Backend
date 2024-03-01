@@ -51,7 +51,6 @@ export class AuthController {
 
   login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
-
     try {
       const user = await this.authService.login(email, password);
       if (user) {
@@ -68,6 +67,26 @@ export class AuthController {
     const token = req.headers.authorization?.split(' ')[1];
     try {
       const user = await this.authService.getCurrentUser(token);
+      if (user) {
+        res.json({ data: user });
+      } else {
+        res.status(401).json({ error: 'Invalid token' });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  updateCurrentUser = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    const updatedUserData = req.body;
+    const profilePicture = req?.file?.filename;
+    try {
+      const user = await this.authService.updateCurrentUser(token, {
+        ...updatedUserData,
+        profilePicture,
+      });
       if (user) {
         res.json({ data: user });
       } else {

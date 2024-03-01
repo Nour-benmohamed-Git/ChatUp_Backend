@@ -3,6 +3,7 @@ import { MessageDAO } from '../dao/MessageDAO';
 import { UserDAO } from '../dao/UserDAO';
 import { MessageDTO } from '../dto/MessageDTO';
 import { Message } from '../models/Message';
+import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
 export class MessageService {
   private messageDAO: MessageDAO;
@@ -29,14 +30,17 @@ export class MessageService {
     return null;
   }
 
-  async getMessagesByChatSessionId(chatSessionId: number): Promise<Message[]> {
-    return this.messageDAO.getMessagesByChatSessionId(chatSessionId);
+  async getMessagesByChatSessionId(
+    chatSessionId: number,
+    token: string
+  ): Promise<Message[]> {
+    const userId = getUserIdFromToken(token);
+    return this.messageDAO.getMessagesByChatSessionId(chatSessionId, userId);
   }
 
   async createMessage(messageDTO: MessageDTO): Promise<MessageDTO> {
     const messageData = await this.mapDTOToMessage(messageDTO);
     const createdMessage = await this.messageDAO.createMessage(messageData);
-
     return this.mapMessageToDTO(createdMessage);
   }
 
@@ -59,12 +63,35 @@ export class MessageService {
     return null;
   }
 
+  async softDeleteMessage(
+    id: number,
+    token: string
+  ): Promise<MessageDTO | null> {
+    const userId = getUserIdFromToken(token);
+    const deletedMessage = await this.messageDAO.softDeleteMessage(id, userId);
+    if (deletedMessage) {
+      return this.mapMessageToDTO(deletedMessage);
+    }
+    return null;
+  }
   async getNewestMessage(id: number): Promise<MessageDTO | null> {
     const newestMessage = await this.messageDAO.getChatSessionLastMessage(id);
     if (newestMessage) {
       return this.mapMessageToDTO(newestMessage);
     }
     return null;
+  }
+
+  async markMessageAsRead(id: number): Promise<MessageDTO | null> {
+    const updatedMessage = await this.messageDAO.markMessageAsRead(id);
+    if (updatedMessage) {
+      return this.mapMessageToDTO(updatedMessage);
+    }
+    return null;
+  }
+
+  async markMessagesAsRead(messageIds: number[]): Promise<void> {
+    await this.messageDAO.markMessagesAsRead(messageIds);
   }
   private mapMessageToDTO(message: Message): MessageDTO {
     return {
@@ -74,6 +101,7 @@ export class MessageService {
       edited: message.edited,
       readStatus: message.readStatus,
       senderId: message.sender?.id,
+      receiverId: message.receiver?.id,
       chatSessionId: message?.chatSession?.id,
       groupId: message.group?.id,
     };
@@ -83,6 +111,7 @@ export class MessageService {
     messageDTO: MessageDTO
   ): Promise<Partial<Message>> {
     const sender = await this.userDAO.getUser(messageDTO.senderId);
+    const receiver = await this.userDAO.getUser(messageDTO.receiverId);
     const chatSession = await this.chatSessionDAO.getChatSession(
       messageDTO.chatSessionId
     );
@@ -91,6 +120,7 @@ export class MessageService {
       edited: messageDTO.edited,
       readStatus: messageDTO.readStatus,
       sender: sender,
+      receiver: receiver,
       chatSession: chatSession,
     };
   }

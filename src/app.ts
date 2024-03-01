@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
+import path from 'path';
 import routes from './configs/routes-config';
-import { authMiddleware } from './utils/middleware/authMiddleware ';
 
 class App {
   public server;
@@ -17,8 +17,12 @@ class App {
     this.server.use(cors());
   }
   publicRoutes() {
+    this.server.use(
+      '/uploads',
+      express.static(path.join(path.resolve(), 'uploads'))
+    );
     this.server.use('/api', routes.publicRoutes);
-    this.server.use(authMiddleware);
+    // this.server.use(authMiddleware);
   }
   privateRoutes() {
     this.server.use('/api', routes.privateRoutes);

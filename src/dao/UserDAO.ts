@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { AppDataSource } from '../configs/typeorm.config';
 import { User } from '../models/User';
 
@@ -9,9 +9,27 @@ export class UserDAO {
     this.userRepository = AppDataSource.getRepository(User);
   }
 
-  async getUsers(): Promise<User[]> {
-    return this.userRepository.find();
+  async getUsers(
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ users: User[]; total: number }> {
+    const [users, total] = await this.userRepository.findAndCount({
+      where: [
+        { username: Like(`%${search}%`) },
+        { firstName: Like(`%${search}%`) },
+        { lastName: Like(`%${search}%`) },
+      ],
+      skip: offset,
+      take: limit,
+    });
+
+    return { users, total };
   }
+
+  // async getUserCount(): Promise<number> {
+  //   return this.userRepository.count();
+  // }
 
   async getUser(id: number): Promise<User | null> {
     return this.userRepository.findOne({ where: { id: id } });
@@ -31,7 +49,7 @@ export class UserDAO {
       this.userRepository.merge(userToUpdate, userData);
       return this.userRepository.save(userToUpdate);
     }
-    
+
     return null;
   }
 

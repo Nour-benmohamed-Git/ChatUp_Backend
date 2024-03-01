@@ -51,6 +51,9 @@ export class User {
   })
   profileInfo?: string;
 
+  @Column({ nullable: true })
+  profilePicture?: string;
+
   @Column({ type: 'bigint' })
   createdAt: number;
 
@@ -63,7 +66,7 @@ export class User {
   @OneToMany(() => ChatSession, (chatSession) => chatSession.participants)
   chatSessions: ChatSession[];
 
-  @ManyToMany(() => Group, group => group.members)
+  @ManyToMany(() => Group, (group) => group.members)
   //specifies that a join table should be used to store the association between users and groups.
   @JoinTable()
   groups: Group[];
@@ -82,6 +85,9 @@ export class User {
     this.updatedAt = toUnixTimestamp(new Date());
   }
 
-  @OneToMany(() => DeletedChatSession, deletedChatSession => deletedChatSession.user) // New relationship
+  @OneToMany(
+    () => DeletedChatSession,
+    (deletedChatSession) => deletedChatSession.user
+  ) // New relationship
   deletedChatSessions: DeletedChatSession[];
 }

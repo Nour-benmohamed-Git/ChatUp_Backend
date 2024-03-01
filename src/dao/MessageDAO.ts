@@ -19,7 +19,10 @@ export class MessageDAO {
     });
   }
 
-  async getMessagesByChatSessionId(chatSessionId: number): Promise<Message[]> {
+  async getMessagesByChatSessionId(
+    chatSessionId: number,
+    userId: number
+  ): Promise<Message[]> {
     const messages = await this.messageRepository
       .createQueryBuilder('message')
       .leftJoin('message.sender', 'sender')
@@ -34,6 +37,10 @@ export class MessageDAO {
         'message.chatSession.id AS chatSessionId',
       ])
       .where('message.chatSession = :chatSessionId', { chatSessionId })
+      .andWhere(
+        '(message.deletedBy IS NULL OR :userId NOT IN (message.deletedBy))',
+        { userId }
+      )
       .getRawMany();
     return messages;
   }
@@ -70,6 +77,22 @@ export class MessageDAO {
     }
     return null;
   }
+  async softDeleteMessage(id: number, userId: number): Promise<Message | null> {
+    const messageToDelete = await this.messageRepository.findOne({
+      where: { id: id },
+    });
+    if (messageToDelete) {
+      if (!messageToDelete.deletedBy) {
+        messageToDelete.deletedBy = [userId];
+      } else {
+        if (!messageToDelete.deletedBy.includes(userId)) {
+          messageToDelete.deletedBy.push(userId);
+        }
+      }
+      return this.messageRepository.save(messageToDelete);
+    }
+    return null;
+  }
 
   async getChatSessionLastMessage(
     chatSessionId: number
@@ -80,5 +103,27 @@ export class MessageDAO {
       },
       order: { timestamp: 'DESC' },
     });
+  }
+
+  async markMessageAsRead(id: number): Promise<Message | null> {
+    const messageToUpdate = await this.messageRepository.findOne({
+      where: { id: id },
+    });
+
+    if (messageToUpdate) {
+      messageToUpdate.readStatus = true;
+      return this.messageRepository.save(messageToUpdate);
+    }
+
+    return null;
+  }
+
+  async markMessagesAsRead(messageIds: number[]): Promise<void> {
+    await this.messageRepository
+      .createQueryBuilder()
+      .update(Message)
+      .set({ readStatus: true })
+      .whereInIds(messageIds)
+      .execute();
   }
 }

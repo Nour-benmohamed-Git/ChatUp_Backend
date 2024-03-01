@@ -8,4 +8,5 @@ export class MessageDTO {
   readStatus?: boolean;
   chatSessionId?: number;
   groupId?: number;
+  deletedBy?: number[];
 }

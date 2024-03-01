@@ -41,134 +41,235 @@ export class WebSocketServer {
           socket.disconnect();
           return;
         }
-
         socket.data.userId = userId;
         SocketHelper.setupRoomListeners(socket, userId.toString());
 
-        // Handle sending a message in a private room
         socket.on(
           'sendMessage',
           async (messageData: {
-            action: 'create' | 'remove' | 'update';
-            data: MessageDTO;
-            room: string;
+            action: 'create' | 'hardRemove' | 'markAsRead';
+            message: MessageDTO;
+            participantsData?: { [userId: string]: string };
           }) => {
-            const { action, data, room } = messageData;
-            // console.log('data', data);
+            const { action, message, participantsData } = messageData;
+            console.log(messageData);
             switch (action) {
               case 'create':
+                SocketHelper.isUserInRoom(
+                  this.io,
+                  message.receiverId,
+                  `room-${message.chatSessionId}`
+                )
+                  .then(async (inRoom) => {
+                    if (!inRoom) {
+                      this.io
+                        .to(`room-${message.chatSessionId}`)
+                        .emit('receiveMessage', {
+                          action: 'create',
+                          data: message,
+                        });
+                      this.unreadMessages[message.receiverId] =
+                        this.unreadMessages[message.receiverId] || [];
+                      this.unreadMessages[message.receiverId].push(message.id);
+
+                      this.io
+                        .to([
+                          `user-${message.receiverId}`,
+                          `user-${message.senderId}`,
+                        ])
+                        .emit('notification', {
+                          type: 'updateChatListOnAddition',
+                          count: this.unreadMessages[message.receiverId].length,
+                          senderId: message.senderId,
+                          participantsData: participantsData,
+                          data: {
+                            id: message.chatSessionId,
+                            lastMessage: {
+                              content: message.content,
+                              timestamp: message.timestamp,
+                            },
+                          },
+                        });
+                    } else {
+                      await this.messageService.markMessageAsRead(message.id);
+                      this.io
+                        .to(`room-${message.chatSessionId}`)
+                        .emit('receiveMessage', {
+                          action: 'create',
+                          data: { ...message, readStatus: true },
+                        });
+                      this.io
+                        .to([
+                          `user-${message.receiverId}`,
+                          `user-${message.senderId}`,
+                        ])
+                        .emit('notification', {
+                          type: 'updateChatListOnAddition',
+                          senderId: message.senderId,
+                          participantsData: participantsData,
+                          data: {
+                            id: message.chatSessionId,
+                            lastMessage: {
+                              content: message.content,
+                              timestamp: message.timestamp,
+                            },
+                          },
+                        });
+                    }
+                  })
+                  .catch((error) => {
+                    console.error('Error checking user room:', error);
+                  });
+
+                break;
+              case 'markAsRead':
                 {
-                  const createdMessage =
-                    await this.messageService.createMessage(data);
-                  this.io.to(`room-${room}`).emit('receiveMessage', {
-                    action: 'create',
-                    data: {
-                      id: createdMessage.id,
-                      chatSessionId: createdMessage.chatSessionId,
-                      timestamp: createdMessage.timestamp,
-                      ...data,
-                    },
-                  });
-                  this.io.to(`user-${data.senderId}`).emit('notification', {
-                    type: 'updateChatListOnAddition',
-                    data: {
-                      id: createdMessage.chatSessionId,
-                      lastMessage: {
-                        content: createdMessage.content,
-                        timestamp: createdMessage.timestamp,
+                  await this.messageService.markMessagesAsRead(
+                    this.unreadMessages[message.receiverId]
+                  );
+                  this.io
+                    .to(`room-${message.chatSessionId}`)
+                    .emit('receiveMessage', {
+                      action: 'markAsRead',
+                      data: {
+                        senderId: message.senderId,
+                        receiverId: message.receiverId,
+                        chatSessionId: message.chatSessionId,
                       },
-                    },
-                  });
-                  SocketHelper.isUserInRoom(
-                    this.io,
-                    data.receiverId,
-                    `room-${room}`
-                  )
-                    .then((inRoom) => {
-                      if (inRoom) {
-                        // console.log('inRoom', inRoom);
-                        // Emit notification event to sender's personal room to update their conversation list
-                        this.io
-                          .to(`user-${data.receiverId}`)
-                          .emit('notification', {
-                            type: 'updateChatListOnAddition',
-                            data: {
-                              id: createdMessage.chatSessionId,
-                              lastMessage: {
-                                content: createdMessage.content,
-                                timestamp: createdMessage.timestamp,
+                      messageIds: this.unreadMessages[message.receiverId],
+                    });
+                  this.unreadMessages[message.receiverId] = [];
+                  this.io
+                    .to(`user-${message.receiverId}`)
+                    .emit('notification', {
+                      type: 'markAsReadOnChatListUpdate',
+                      data: {
+                        id: message.chatSessionId,
+                      },
+                      count: 0,
+                    });
+                }
+                break;
+              case 'hardRemove':
+                SocketHelper.isUserInRoom(
+                  this.io,
+                  message.receiverId,
+                  `room-${message.chatSessionId}`
+                )
+                  .then(async (inRoom) => {
+                    if (!inRoom) {
+                      if (this.unreadMessages?.[message?.receiverId]?.length) {
+                        const index = this.unreadMessages[
+                          message.receiverId
+                        ].indexOf(message.id);
+                        if (index !== -1) {
+                          this.io
+                            .to(`room-${message.chatSessionId}`)
+                            .emit('receiveMessage', {
+                              action: 'hardRemove',
+                              data: {
+                                id: message.id,
+                                chatSessionId: message.chatSessionId,
                               },
+                            });
+                          const newestMessage =
+                            await this.messageService.getNewestMessage(
+                              message.chatSessionId
+                            );
+                          this.unreadMessages[message.receiverId].splice(
+                            index,
+                            1
+                          );
+                          this.io
+                            .to([
+                              `user-${message.receiverId}`,
+                              `user-${message.senderId}`,
+                            ])
+                            .emit('notification', {
+                              type: 'updateChatListOnHardRemoval',
+                              count:
+                                this.unreadMessages[message.receiverId].length,
+                              senderId: message.senderId,
+                              data: {
+                                id: message.chatSessionId,
+                                lastMessage: {
+                                  content: newestMessage?.content,
+                                  timestamp: newestMessage?.timestamp,
+                                },
+                              },
+                            });
+                        }
+                      } else {
+                        this.io
+                          .to(`room-${message.chatSessionId}`)
+                          .emit('receiveMessage', {
+                            action: 'hardRemove',
+                            data: {
+                              id: message.id,
+                              chatSessionId: message.chatSessionId,
                             },
                           });
-                      } else {
-                        // console.log('not in room', inRoom);
-                        // Recipient is not in the room, add message to unread messages
-                        this.unreadMessages[data.receiverId] =
-                          this.unreadMessages[data.receiverId] || [];
-                        this.unreadMessages[data.receiverId].push(
-                          createdMessage.id
-                        );
-                        // Emit notification event to user's personal room
+                        const newestMessage =
+                          await this.messageService.getNewestMessage(
+                            message.chatSessionId
+                          );
                         this.io
-                          .to(`user-${data.receiverId}`)
+                          .to([
+                            `user-${message.receiverId}`,
+                            `user-${message.senderId}`,
+                          ])
                           .emit('notification', {
-                            type: 'updateChatListOnAddition',
-                            count: this.unreadMessages[data.receiverId].length,
+                            type: 'updateChatListOnHardRemoval',
+                            senderId: message.senderId,
                             data: {
-                              id: createdMessage.chatSessionId,
+                              id: message.chatSessionId,
                               lastMessage: {
-                                content: createdMessage.content,
-                                timestamp: createdMessage.timestamp,
+                                content: newestMessage?.content,
+                                timestamp: newestMessage?.timestamp,
                               },
                             },
                           });
                       }
-                    })
-                    .catch((error) => {
-                      console.error('Error checking user room:', error);
-                    });
-                }
-                break;
-              case 'update':
-                break;
-              case 'remove':
-                {
-                  await this.messageService.deleteMessage(+data.content);
-                  this.io.to(`room-${room}`).emit('receiveMessage', {
-                    action: 'remove',
-                    data: {
-                      id: +data.content,
-                      chatSessionId: data.chatSessionId,
-                    },
-                  });
+                    } else {
+                      this.io
+                        .to(`room-${message.chatSessionId}`)
+                        .emit('receiveMessage', {
+                          action: 'hardRemove',
+                          data: {
+                            id: message.id,
+                            chatSessionId: message.chatSessionId,
+                          },
+                        });
+                      const newestMessage =
+                        await this.messageService.getNewestMessage(
+                          message.chatSessionId
+                        );
 
-                  const newestMessage =
-                    await this.messageService.getNewestMessage(
-                      data.chatSessionId
-                    );
-                  console.log(data);
-                  this.io.to(`user-${+data.senderId}`).emit('notification', {
-                    type: 'updateChatListOnRemoval',
-                    data: {
-                      id: data.chatSessionId,
-                      lastMessage: {
-                        content: newestMessage.content,
-                        timestamp: newestMessage.timestamp,
-                      },
-                    },
+                      this.io
+                        .to([
+                          `user-${message.receiverId}`,
+                          `user-${message.senderId}`,
+                        ])
+                        .emit('notification', {
+                          type: 'updateChatListOnHardRemoval',
+                          senderId: message.senderId,
+                          data: {
+                            id: message.chatSessionId,
+                            lastMessage: {
+                              content: newestMessage?.content,
+                              timestamp: newestMessage?.timestamp,
+                            },
+                          },
+                        });
+                    }
+                  })
+                  .catch((error) => {
+                    console.error('Error checking user room:', error);
                   });
-                }
                 break;
-              default:
             }
           }
         );
-        // socket.on('markAsRead', (chatSessionId: string) => {
-        //   const userId = socket.data.userId;
-        //   if (userId && this.unreadMessages[userId]) {
-        //     this.unreadMessages[userId] = this.unreadMessages[userId].filter(id => id !== chatSessionId);
-        //   }
-        // });
       } catch (error) {
         console.error('Token verification failed:', error);
         socket.disconnect();

@@ -4,6 +4,7 @@ import { MessageDAO } from '../dao/MessageDAO';
 import { UserDAO } from '../dao/UserDAO';
 import { ChatSessionDTO } from '../dto/ChatSessionDTO';
 import { ChatSession } from '../models/ChatSession';
+import { getChatSessionImage } from '../utils/helpers/globalHelpers';
 import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
 export class ChatSessionService {
@@ -18,17 +19,38 @@ export class ChatSessionService {
     this.messageDAO = new MessageDAO();
     this.deletedChatSessionDAO = new DeletedChatSessionDAO();
   }
-
-  async getCurrentUserChatSessions(token: string): Promise<ChatSessionDTO[]> {
+  async getChatSession(
+    id: number,
+    currentUserId: number
+  ): Promise<ChatSessionDTO | null> {
+    try {
+      const chatSession = await this.chatSessionDAO.getChatSession(id);
+      return this.mapChatSessionToDTO(chatSession, currentUserId);
+    } catch (error) {
+      console.error('Error in getChatSession:', error);
+      return null;
+    }
+  }
+  async getCurrentUserChatSessions(
+    token: string,
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ chatSessions: ChatSessionDTO[]; total: number }> {
     const userId = getUserIdFromToken(token);
-    const chatSessions =
-      await this.chatSessionDAO.getChatSessionsByUserId(userId);
+    const { chatSessions, total } =
+      await this.chatSessionDAO.getChatSessionsByUserId(
+        userId,
+        offset,
+        limit,
+        search
+      );
     const chatSessionDTOs = await Promise.all(
       chatSessions.map((chatSession) =>
         this.mapChatSessionToDTO(chatSession, userId)
       )
     );
-    return chatSessionDTOs;
+    return { chatSessions: chatSessionDTOs, total };
   }
 
   async getChatSessionByParticipants(
@@ -113,7 +135,6 @@ export class ChatSessionService {
       await this.deletedChatSessionDAO.getDeletedChatSessionCountByChatSessionId(
         id
       );
-    console.log('count', count);
     if (count === 2 || deletedChatSession.participants.length === 1) {
       deletedChatSession = await this.chatSessionDAO.hardDeleteChatSession(id);
     }
@@ -137,7 +158,7 @@ export class ChatSessionService {
       );
     return {
       id: chatSession.id,
-      title: chatSession.title,
+      image: getChatSessionImage(chatSession, currentUserId),
       participantsData: chatSession?.participants?.reduce(
         (acc, participant) => {
           acc[participant?.id] = participant?.username;

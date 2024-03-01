@@ -28,6 +28,9 @@ export class Message {
   @Column({ default: false })
   readStatus: boolean;
 
+  @Column('simple-array', { nullable: true })
+  deletedBy: number[];
+
   @ManyToOne(() => User, (user) => user.sentMessages)
   @JoinColumn({ name: 'senderId' })
   sender: User;
