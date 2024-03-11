@@ -12,5 +12,17 @@ authenticationRouter.patch(
   upload.single('profilePicture'),
   authController.updateCurrentUser
 );
+authenticationRouter.post(
+  '/current-user/add-friend',
+  authController.addOwnFriend
+);
+authenticationRouter.post(
+  '/current-user/remove-friend',
+  authController.removeOwnFriend
+);
+authenticationRouter.get(
+  '/current-user/friends',
+  authController.getOwnFriends
+);
 
 export default authenticationRouter;

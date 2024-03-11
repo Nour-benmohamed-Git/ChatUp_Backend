@@ -77,7 +77,6 @@ export class AuthController {
       res.status(500).json({ error: 'Internal server error' });
     }
   };
-
   updateCurrentUser = async (req: Request, res: Response): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
     const updatedUserData = req.body;
@@ -95,6 +94,67 @@ export class AuthController {
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+
+  addOwnFriend = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    try {
+      const userId = Number.parseInt(req.params.id, 10);
+      const { friendId } = req.body;
+      if (isNaN(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+      const user = await this.authService.addOwnFriend(token, friendId);
+      if (user) {
+        res.json({ data: user });
+      } else {
+        res.status(404).json({ error: 'User or friend not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
+
+  removeOwnFriend = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    try {
+      const userId = Number.parseInt(req.params.id, 10);
+      const { friendIdentifier } = req.body;
+      if (isNaN(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+      const user = await this.authService.addOwnFriend(token, friendIdentifier);
+      if (user) {
+        res.json({ data: user });
+      } else {
+        res.status(404).json({ error: 'User or friend not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
+
+  getOwnFriends = async (req: Request, res: Response): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+    try {
+      const { friends, total } = await this.authService.getOwnFriends(
+        token,
+        offset,
+        Number(limit),
+        String(search)
+      );
+      if (friends.length === 0) {
+        res.json({ data: [] });
+      } else {
+        res.json({ data: friends, total: total });
+      }
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
     }
   };
 }

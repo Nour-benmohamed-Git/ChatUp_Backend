@@ -9,9 +9,9 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
+import { DeletedChatSession } from './DeletedChatSession';
 import { Message } from './Message';
 import { User } from './User';
-import { DeletedChatSession } from './DeletedChatSession';
 
 @Entity()
 export class ChatSession {

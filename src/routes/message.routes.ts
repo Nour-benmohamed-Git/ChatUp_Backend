@@ -10,7 +10,7 @@ messageRouter.get(
   messageController.getMessagesByChatSessionId
 );
 messageRouter.post('/messages', messageController.createMessage);
-messageRouter.put('/messages/:id', messageController.updateMessage);
+messageRouter.patch('/messages/:id', messageController.updateMessage);
 messageRouter.delete('/messages/:id', messageController.deleteMessage);
 messageRouter.patch('/messages/:id', messageController.softDeleteMessage);
 export default messageRouter;

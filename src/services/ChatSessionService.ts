@@ -4,7 +4,10 @@ import { MessageDAO } from '../dao/MessageDAO';
 import { UserDAO } from '../dao/UserDAO';
 import { ChatSessionDTO } from '../dto/ChatSessionDTO';
 import { ChatSession } from '../models/ChatSession';
-import { getChatSessionImage } from '../utils/helpers/globalHelpers';
+import {
+  getChatSessionImage,
+  getChatSessionTitle,
+} from '../utils/helpers/globalHelpers';
 import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
 export class ChatSessionService {
@@ -158,6 +161,7 @@ export class ChatSessionService {
       );
     return {
       id: chatSession.id,
+      title: getChatSessionTitle(chatSession, currentUserId),
       image: getChatSessionImage(chatSession, currentUserId),
       participantsData: chatSession?.participants?.reduce(
         (acc, participant) => {

@@ -35,12 +35,10 @@ export class Message {
   @JoinColumn({ name: 'senderId' })
   sender: User;
 
-  // Optional: Reference to the receiver user if it's a direct message
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'receiverId' })
   receiver?: User;
 
-  // Reference to the group if it's a group message
   @ManyToOne(() => Group, (group) => group.messages, { nullable: true })
   @JoinColumn({ name: 'groupId' })
   group?: Group;

@@ -14,3 +14,19 @@ export const getChatSessionImage = (
     ? currentUser?.profilePicture
     : otherParticipant?.profilePicture;
 };
+
+export function getChatSessionTitle(
+  chatSession: Partial<ChatSession>,
+  currentUserId: number
+) {
+  const currentUser = chatSession?.participants?.find(
+    (participant) => participant?.id === currentUserId
+  );
+  const otherParticipant = chatSession?.participants?.find(
+    (participant) => participant?.id !== currentUserId
+  );
+
+  return chatSession?.participants?.length === 1
+    ? `${currentUser.username} (YOU)`
+    : otherParticipant?.username;
+}

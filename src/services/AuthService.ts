@@ -2,8 +2,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { UserDAO } from '../dao/UserDAO';
 import { UserDTO } from '../dto/UserDTO';
-import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 import { User } from '../models/User';
+import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
 export class AuthService {
   private userDAO: UserDAO;
@@ -44,6 +44,9 @@ export class AuthService {
   }
   async getCurrentUser(token: string) {
     const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('Invalid token');
+    }
     const user = await this.userDAO.getUser(userId);
     if (user) {
       return new UserDTO(user);
@@ -51,7 +54,7 @@ export class AuthService {
     return null;
   }
   async updateCurrentUser(
-    token: string | undefined,
+    token: string,
     updatedUserData: Partial<User>
   ): Promise<UserDTO> {
     const userId = getUserIdFromToken(token);
@@ -64,5 +67,46 @@ export class AuthService {
     }
     const updatedUser = await this.userDAO.updateUser(userId, updatedUserData);
     return updatedUser ? new UserDTO(updatedUser) : null;
+  }
+
+  async addOwnFriend(token: string, friendId: number): Promise<UserDTO | null> {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('Invalid token');
+    }
+    const user = await this.userDAO.addFriend(userId, friendId);
+    return user ? new UserDTO(user) : null;
+  }
+
+  async removeOwnFriend(
+    token: string,
+    friendId: number
+  ): Promise<UserDTO | null> {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('Invalid token');
+    }
+    const user = await this.userDAO.removeFriend(userId, friendId);
+    return user ? new UserDTO(user) : null;
+  }
+
+  async getOwnFriends(
+    token: string,
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ friends: UserDTO[]; total: number }> {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      throw new Error('Invalid token');
+    }
+    const { friends, total } = await this.userDAO.getFriends(
+      userId,
+      offset,
+      limit,
+      search
+    );
+    const friendsDTOs = friends.map((friend) => new UserDTO(friend));
+    return { friends: friendsDTOs, total };
   }
 }

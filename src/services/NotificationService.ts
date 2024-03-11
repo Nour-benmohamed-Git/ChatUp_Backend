@@ -1,62 +1,76 @@
+import { ChatSessionDAO } from '../dao/ChatSessionDAO';
 import { NotificationDAO } from '../dao/NotificationDAO';
+import { UserDAO } from '../dao/UserDAO';
 import { NotificationDTO } from '../dto/NotificationDTO';
-import { Notification } from '../models/Notification';
+import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
 export class NotificationService {
   private notificationDAO: NotificationDAO;
-
+  private userDAO: UserDAO;
+  private chatSessionDAO: ChatSessionDAO;
   constructor() {
     this.notificationDAO = new NotificationDAO();
+    this.userDAO = new UserDAO();
+    this.chatSessionDAO = new ChatSessionDAO();
+  }
+  async getOwnFriendRequests(token: string): Promise<NotificationDTO[]> {
+    const userId = getUserIdFromToken(token);
+    return this.notificationDAO.getFriendRequestsByUserId(userId);
+  }
+  async createFriendRequest(
+    token: string,
+    friendIdentifier: string
+  ): Promise<NotificationDTO | null> {
+    const userId = getUserIdFromToken(token);
+    try {
+      const currentUser = await this.userDAO.getUser(userId);
+      const secondMember = await this.userDAO.findUserByEmail(friendIdentifier);
+      if (currentUser.id === secondMember.id) {
+        console.error('Cannot send a friend request to yourself');
+        return null;
+      }
+      const createdNotification =
+        await this.notificationDAO.createFriendRequest({
+          sender: currentUser,
+          receiver: secondMember,
+          title: currentUser.username,
+          image: currentUser.profilePicture,
+        });
+
+      if (!createdNotification) {
+        console.error('Failed to create friend request');
+        return null;
+      }
+      return new NotificationDTO(createdNotification);
+    } catch (error) {
+      console.error('Error while creating a friend request', error);
+      return null;
+    }
   }
 
-  async getNotifications(): Promise<NotificationDTO[]> {
-    const notifications = await this.notificationDAO.getNotifications();
-    return notifications.map(this.mapNotificationToDTO);
-  }
+  async updateFiendRequestStatusToAccepted(
+    id: number
+  ): Promise<NotificationDTO> {
+    const friendRequestData =
+      await this.notificationDAO.updateFiendRequestStatusToAccepted(id);
 
-  async getNotification(id: number): Promise<NotificationDTO | null> {
-    const notification = await this.notificationDAO.getNotification(id);
-    if (notification) {
-      return this.mapNotificationToDTO(notification);
+    if (friendRequestData) {
+      await this.userDAO.addFriend(
+        friendRequestData.receiver.id,
+        friendRequestData.sender.id
+      );
+      return new NotificationDTO(friendRequestData);
     }
     return null;
   }
-
-  async createNotification(dto: NotificationDTO): Promise<Notification> {
-    const notificationData = this.mapDTOToNotification(dto);
-    return this.notificationDAO.createNotification(notificationData);
-  }
-
-  async updateNotification(id: number, dto: NotificationDTO): Promise<NotificationDTO | null> {
-    const notificationData = this.mapDTOToNotification(dto);
-    const updatedNotification = await this.notificationDAO.updateNotification(id, notificationData);
-    if (updatedNotification) {
-      return this.mapNotificationToDTO(updatedNotification);
+  async updateFiendRequestStatusToDeclined(
+    id: number
+  ): Promise<NotificationDTO> {
+    const friendRequestData =
+      await this.notificationDAO.updateFiendRequestStatusToDeclined(id);
+    if (friendRequestData) {
+      return new NotificationDTO(friendRequestData);
     }
     return null;
-  }
-
-  async deleteNotification(id: number): Promise<boolean> {
-    return this.notificationDAO.deleteNotification(id);
-  }
-
-  private mapDTOToNotification(dto: NotificationDTO): Partial<Notification> {
-    return {
-     
-      message: dto.message,
-      timestamp: dto.timestamp,
-      readStatus: dto.readStatus,
-    };
-  }
-
-  private mapNotificationToDTO(notification: Notification): NotificationDTO {
-    return {
-      id: notification.id,
-      type: notification.type,
-      message: notification.message,
-      timestamp: notification.timestamp,
-      receiverId: notification.receiver.id,
-      readStatus: notification.readStatus,
-    };
   }
 }

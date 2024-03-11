@@ -44,11 +44,8 @@ export class MessageService {
     return this.mapMessageToDTO(createdMessage);
   }
 
-  async updateMessage(
-    id: number,
-    messageDTO: MessageDTO
-  ): Promise<MessageDTO | null> {
-    const updatedMessage = await this.messageDAO.updateMessage(id, messageDTO);
+  async updateMessage(id: number, content: string): Promise<MessageDTO | null> {
+    const updatedMessage = await this.messageDAO.updateMessage(id, content);
     if (updatedMessage) {
       return this.mapMessageToDTO(updatedMessage);
     }

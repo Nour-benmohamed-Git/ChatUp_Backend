@@ -50,16 +50,14 @@ export class MessageDAO {
     return this.messageRepository.save(message);
   }
 
-  async updateMessage(
-    id: number,
-    messageData: Partial<Message>
-  ): Promise<Message | null> {
+  async updateMessage(id: number, content: string): Promise<Message | null> {
     const messageToUpdate = await this.messageRepository.findOne({
       where: { id: id },
       relations: ['chatSession', 'group'],
     });
     if (messageToUpdate) {
-      this.messageRepository.merge(messageToUpdate, messageData);
+      messageToUpdate.content = content;
+      messageToUpdate.edited = true;
       return this.messageRepository.save(messageToUpdate);
     }
 

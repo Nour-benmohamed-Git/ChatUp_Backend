@@ -3,3 +3,9 @@ export enum UserStatus {
   'ACTIVE',
   'INACTIVE',
 }
+
+export enum NotificationStatus {
+  'PENDING',
+  'ACCEPTED',
+  'DECLINED',
+}

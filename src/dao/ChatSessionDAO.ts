@@ -143,7 +143,6 @@ export class ChatSessionDAO {
     if (chatSessionToUpdate) {
       return chatSessionToUpdate;
     }
-
     return null;
   }
 

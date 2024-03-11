@@ -27,10 +27,6 @@ export class UserDAO {
     return { users, total };
   }
 
-  // async getUserCount(): Promise<number> {
-  //   return this.userRepository.count();
-  // }
-
   async getUser(id: number): Promise<User | null> {
     return this.userRepository.findOne({ where: { id: id } });
   }
@@ -72,5 +68,73 @@ export class UserDAO {
 
   async findUserByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email: email } });
+  }
+
+  async addFriend(userId: number, friendId: number): Promise<User | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['friends'],
+    });
+    const friend = await this.userRepository.findOne({
+      where: { id: friendId },
+    });
+    if (user && friend) {
+      const isAlreadyFriend = user.friends.some((f) => f.id === friend.id);
+      if (!isAlreadyFriend) {
+        user.friends.push(friend);
+        await this.userRepository.save(user);
+      }
+      return user;
+    }
+    return null;
+  }
+
+  async getFriends(
+    userId: number,
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<{ friends: User[] | null; total: number }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['friends'],
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    let friends = user.friends;
+
+    // Apply search filter
+    if (search) {
+      friends = friends.filter(
+        (friend) =>
+          friend.username.includes(search) ||
+          friend.firstName.includes(search) ||
+          friend.lastName.includes(search)
+      );
+    }
+
+    const total = friends.length;
+
+    // Apply pagination
+    const startIndex = offset;
+    const endIndex = offset + limit;
+    friends = friends.slice(startIndex, endIndex);
+    return { friends, total };
+  }
+
+  async removeFriend(userId: number, friendId: number): Promise<User | null> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['friends'],
+    });
+    if (user) {
+      user.friends = user.friends.filter((friend) => friend.id !== friendId);
+      await this.userRepository.save(user);
+      return user;
+    }
+    return null;
   }
 }

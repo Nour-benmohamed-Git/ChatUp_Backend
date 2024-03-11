@@ -2,9 +2,11 @@ import {
   BeforeInsert,
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { NotificationStatus } from '../utils/constants/enums';
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { User } from './User';
 
@@ -13,20 +15,29 @@ export class Notification {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  type: string;
+  @Column({ nullable: true })
+  title: string;
 
-  @Column('text')
-  message: string;
+  @Column({ nullable: true })
+  image: string;
 
   @Column({ type: 'bigint' })
   timestamp: number;
 
-  @ManyToOne(() => User, (user) => user.notifications)
-  receiver: User;
+  @ManyToOne(() => User, (user) => user.sentMessages)
+  @JoinColumn({ name: 'senderId' })
+  sender: User;
 
-  @Column({ default: false })
-  readStatus: boolean;
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'receiverId' })
+  receiver?: User;
+
+  @Column({
+    type: 'enum',
+    enum: NotificationStatus,
+    default: NotificationStatus.PENDING,
+  })
+  status: NotificationStatus;
 
   @BeforeInsert()
   beforeInsert() {

@@ -60,6 +60,10 @@ export class User {
   @Column({ type: 'bigint' })
   updatedAt: number;
 
+  @ManyToMany(() => User, user => user.friends)
+  @JoinTable()
+  friends: User[];
+
   @OneToMany(() => Message, (message) => message.sender)
   sentMessages: Message[];
 

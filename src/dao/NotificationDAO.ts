@@ -1,6 +1,7 @@
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { AppDataSource } from '../configs/typeorm.config';
 import { Notification } from '../models/Notification';
+import { NotificationStatus } from '../utils/constants/enums';
 
 export class NotificationDAO {
   private notificationRepository: Repository<Notification>;
@@ -8,32 +9,42 @@ export class NotificationDAO {
   constructor() {
     this.notificationRepository = AppDataSource.getRepository(Notification);
   }
-
-  async getNotifications(): Promise<Notification[]> {
-    return this.notificationRepository.find();
+  async getFriendRequestsByUserId(userId: number): Promise<Notification[]> {
+    const friendRequests = await this.notificationRepository.find({
+      where: {
+        receiver: { id: userId },
+        status: Like(NotificationStatus.PENDING),
+      },
+    });
+    return friendRequests;
   }
-
-  async getNotification(id: number): Promise<Notification | null> {
-    return this.notificationRepository.findOne({ where: { id: id } });
-  }
-
-  async createNotification(
+  async createFriendRequest(
     notificationData: Partial<Notification>
   ): Promise<Notification> {
-    const notification = this.notificationRepository.create(notificationData);
-    return this.notificationRepository.save(notification);
+    const newNotification =
+      this.notificationRepository.create(notificationData);
+    return this.notificationRepository.save(newNotification);
   }
+  async updateFiendRequestStatusToAccepted(id: number): Promise<Notification> {
+    const notificationToUpdate = await this.notificationRepository.findOne({
+      where: { id: id },
+      relations: ['receiver', 'sender'],
+    });
 
-  async updateNotification(
-    id: number,
-    notificationData: Partial<Notification>
-  ): Promise<Notification | null> {
-    await this.notificationRepository.update({ id }, notificationData);
-    return this.getNotification(id);
+    if (notificationToUpdate) {
+      notificationToUpdate.status = NotificationStatus.ACCEPTED;
+      return this.notificationRepository.save(notificationToUpdate);
+    }
+    return null;
   }
-
-  async deleteNotification(id: number): Promise<boolean> {
-    const result = await this.notificationRepository.delete({ id });
-    return result.affected && result.affected > 0;
+  async updateFiendRequestStatusToDeclined(id: number): Promise<Notification> {
+    const notificationToUpdate = await this.notificationRepository.findOne({
+      where: { id: id },
+    });
+    if (notificationToUpdate) {
+      notificationToUpdate.status = NotificationStatus.DECLINED;
+      return this.notificationRepository.save(notificationToUpdate);
+    }
+    return null;
   }
 }

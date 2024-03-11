@@ -67,12 +67,12 @@ export class MessageController {
 
   updateMessage = async (req: Request, res: Response): Promise<void> => {
     const messageId = Number.parseInt(req.params.id, 10);
-    const messageDTO: MessageDTO = req.body;
+    const message: MessageDTO = req.body;
 
     try {
       const updatedMessage = await this.messageService.updateMessage(
         messageId,
-        messageDTO
+        message.content
       );
       if (updatedMessage) {
         res.json({ data: updatedMessage });

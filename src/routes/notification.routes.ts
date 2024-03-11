@@ -4,24 +4,20 @@ import { NotificationController } from '../controllers/NotificationController';
 const notificationRouter = Router();
 const notificationController = new NotificationController();
 notificationRouter.get(
-  '/notifications',
-  notificationController.getNotifications
-);
-notificationRouter.get(
-  '/notifications/:id',
-  notificationController.getNotification
+  '/notifications/own-friend-requests',
+  notificationController.getOwnFriendRequests
 );
 notificationRouter.post(
   '/notifications',
   notificationController.createNotification
 );
-notificationRouter.put(
-  '/notifications/:id',
-  notificationController.updateNotification
+notificationRouter.patch(
+  '/notifications/:notificationId/accept',
+  notificationController.updateFriendRequestStatusToAccepted
 );
-notificationRouter.delete(
-  '/notifications/:id',
-  notificationController.deleteNotification
+notificationRouter.patch(
+  '/notifications/:notificationId/decline',
+  notificationController.updateFriendRequestStatusToDeclined
 );
 
 export default notificationRouter;

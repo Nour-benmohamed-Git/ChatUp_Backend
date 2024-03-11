@@ -3,6 +3,7 @@ import { createServer, Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { Server as SocketIOServer } from 'socket.io';
 import { MessageDTO } from '../dto/MessageDTO';
+import { NotificationDTO } from '../dto/NotificationDTO';
 import { MessageService } from '../services/MessageService';
 import { SocketHelper } from '../utils/helpers/socketHelpers';
 
@@ -36,13 +37,59 @@ export class WebSocketServer {
           exp: number;
         };
         const userId = decodedToken.id;
-
         if (!userId) {
           socket.disconnect();
           return;
         }
         socket.data.userId = userId;
         SocketHelper.setupRoomListeners(socket, userId.toString());
+
+        socket.on(
+          'send-friend-request',
+          async (friendRequestData: {
+            action: 'send' | 'accept' | 'decline' | 'markAsSeen';
+            friendRequest: NotificationDTO;
+          }) => {
+            const { action, friendRequest } = friendRequestData;
+            // console.log(friendRequest);
+            switch (action) {
+              case 'send':
+                socket.emit('friend-request-notification', {
+                  action: 'accept',
+                  friendRequest: friendRequest,
+                });
+
+                break;
+              case 'accept':
+                socket.emit('friend-request-notification', {
+                  action: 'accept',
+                  friendRequest: friendRequest,
+                });
+
+                break;
+              case 'decline':
+                socket.emit('friend-request-notification', {
+                  action: 'decline',
+                  friendRequest: friendRequest,
+                });
+
+                break;
+            }
+          }
+        );
+
+        // When the user accepts or declines a friend request
+        socket.on('friend-request-response', (data) => {
+          // Update the friend request status in the database
+          // Emit a notification event to the sender
+          socket
+            .to(data.senderId)
+            .emit('friend-request-response-notification', {
+              message: data.accepted
+                ? 'Friend request accepted!'
+                : 'Friend request declined!',
+            });
+        });
 
         socket.on(
           'sendMessage',
@@ -52,7 +99,6 @@ export class WebSocketServer {
             participantsData?: { [userId: string]: string };
           }) => {
             const { action, message, participantsData } = messageData;
-            console.log(messageData);
             switch (action) {
               case 'create':
                 SocketHelper.isUserInRoom(
