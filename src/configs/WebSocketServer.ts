@@ -2,9 +2,12 @@ import { Express } from 'express';
 import { createServer, Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { Server as SocketIOServer } from 'socket.io';
+import { FriendRequestDTO } from '../dto/FriendRequestDTO';
 import { MessageDTO } from '../dto/MessageDTO';
-import { NotificationDTO } from '../dto/NotificationDTO';
+import { ChatSessionService } from '../services/ChatSessionService';
+import { FriendRequestService } from '../services/FriendRequestService';
 import { MessageService } from '../services/MessageService';
+import { UserService } from '../services/UserService';
 import { SocketHelper } from '../utils/helpers/socketHelpers';
 
 export class WebSocketServer {
@@ -13,7 +16,12 @@ export class WebSocketServer {
   private port: string | number;
   private secretKey: string;
   private messageService: MessageService;
+  private chatSessionService: ChatSessionService;
+  private friendRequestService: FriendRequestService;
+  private userService: UserService;
   private unreadMessages: { [userId: string]: number[] };
+  private unseenChatSessions: { [userId: string]: number[] };
+  private unseenFriendRequests: { [userId: string]: number[] };
 
   constructor(app: Express) {
     this.secretKey = process.env.SECRET_KEY!;
@@ -23,7 +31,13 @@ export class WebSocketServer {
     });
     this.port = process.env.SOCKET_PORT || 3000;
     this.messageService = new MessageService();
+    this.chatSessionService = new ChatSessionService();
+    this.friendRequestService = new FriendRequestService();
+    this.userService = new UserService();
     this.unreadMessages = {};
+    this.unseenChatSessions = {};
+    this.unseenFriendRequests = {};
+
     this.listen();
   }
 
@@ -41,6 +55,14 @@ export class WebSocketServer {
           socket.disconnect();
           return;
         }
+
+        // socket.on('disconnect', () => {
+        //   const userId = socket.data.userId;
+        //   if (userId) {
+        //     console.log(`User ${userId} disconnected`);
+        //     // Here you can perform any additional cleanup or logging
+        //   }
+        // });
         socket.data.userId = userId;
         SocketHelper.setupRoomListeners(socket, userId.toString());
 
@@ -48,48 +70,81 @@ export class WebSocketServer {
           'send-friend-request',
           async (friendRequestData: {
             action: 'send' | 'accept' | 'decline' | 'markAsSeen';
-            friendRequest: NotificationDTO;
+            friendRequest: FriendRequestDTO;
           }) => {
             const { action, friendRequest } = friendRequestData;
-            // console.log(friendRequest);
             switch (action) {
               case 'send':
-                socket.emit('friend-request-notification', {
-                  action: 'accept',
-                  friendRequest: friendRequest,
-                });
-
+                this.io
+                  .to(`user-${friendRequest.receiverId}`)
+                  .emit('friend-request-notification', {
+                    action: 'send',
+                    friendRequest: friendRequest,
+                  });
+                this.unseenFriendRequests[friendRequest.receiverId] =
+                  this.unseenFriendRequests[friendRequest.receiverId] || [];
+                this.unseenFriendRequests[friendRequest.receiverId].push(
+                  friendRequest.id
+                );
+                if (
+                  this.unseenFriendRequests[friendRequest.receiverId]?.length
+                ) {
+                  this.io
+                    .to(`user-${friendRequest.receiverId}`)
+                    .emit('friendRequestCount', {
+                      unseenFriendRequests:
+                        this.unseenFriendRequests[friendRequest.receiverId]
+                          ?.length,
+                    });
+                }
+                break;
+              case 'markAsSeen':
+                // socket.emit('friend-request-notification', {
+                //   action: 'markAsSeen',
+                //   unseenFriendRequestsIds:
+                //     this.unseenFriendRequests[friendRequest.receiverId],
+                // });
+                await this.friendRequestService.markFriendRequestsAsSeen(
+                  this.unseenFriendRequests[friendRequest.receiverId]
+                );
+                this.unseenFriendRequests[friendRequest.receiverId] = [];
+                this.io
+                  .to(`user-${friendRequest.receiverId}`)
+                  .emit('friendRequestCount', {
+                    unseenFriendRequests: 0,
+                  });
                 break;
               case 'accept':
-                socket.emit('friend-request-notification', {
-                  action: 'accept',
-                  friendRequest: friendRequest,
-                });
-
+                {
+                  const user = await this.userService.getUser(
+                    friendRequest.receiverId
+                  );
+                  this.io
+                    .to(`user-${friendRequest.senderId}`)
+                    .emit('friend-request-notification', {
+                      action: 'accept',
+                      friendRequest: friendRequest,
+                      message: `${user.username} has accepted your friend request.`,
+                    });
+                }
                 break;
               case 'decline':
-                socket.emit('friend-request-notification', {
-                  action: 'decline',
-                  friendRequest: friendRequest,
-                });
-
+                {
+                  const user = await this.userService.getUser(
+                    friendRequest.receiverId
+                  );
+                  this.io
+                    .to(`user-${friendRequest.senderId}`)
+                    .emit('friend-request-notification', {
+                      action: 'decline',
+                      friendRequest: friendRequest,
+                      message: `${user.username} has declined your friend request.`,
+                    });
+                }
                 break;
             }
           }
         );
-
-        // When the user accepts or declines a friend request
-        socket.on('friend-request-response', (data) => {
-          // Update the friend request status in the database
-          // Emit a notification event to the sender
-          socket
-            .to(data.senderId)
-            .emit('friend-request-response-notification', {
-              message: data.accepted
-                ? 'Friend request accepted!'
-                : 'Friend request declined!',
-            });
-        });
 
         socket.on(
           'sendMessage',
@@ -117,7 +172,29 @@ export class WebSocketServer {
                       this.unreadMessages[message.receiverId] =
                         this.unreadMessages[message.receiverId] || [];
                       this.unreadMessages[message.receiverId].push(message.id);
-
+                      if (
+                        !this.unseenChatSessions[message.receiverId]?.includes(
+                          message.chatSessionId
+                        )
+                      ) {
+                        this.unseenChatSessions[message.receiverId] =
+                          this.unseenChatSessions[message.receiverId] || [];
+                        this.unseenChatSessions[message.receiverId].push(
+                          message.chatSessionId
+                        );
+                        this.io
+                          .to(`user-${message.receiverId}`)
+                          .emit('conversationCount', {
+                            unseenConversations:
+                              this.unseenChatSessions[message.receiverId]
+                                ?.length,
+                          });
+                      }
+                      await this.chatSessionService.updateUnreadMessages(
+                        message.chatSessionId,
+                        this.unreadMessages,
+                        userId
+                      );
                       this.io
                         .to([
                           `user-${message.receiverId}`,
@@ -125,7 +202,7 @@ export class WebSocketServer {
                         ])
                         .emit('notification', {
                           type: 'updateChatListOnAddition',
-                          count: this.unreadMessages[message.receiverId].length,
+                          unreadMessages: this.unreadMessages,
                           senderId: message.senderId,
                           participantsData: participantsData,
                           data: {
@@ -173,6 +250,7 @@ export class WebSocketServer {
                   await this.messageService.markMessagesAsRead(
                     this.unreadMessages[message.receiverId]
                   );
+
                   this.io
                     .to(`room-${message.chatSessionId}`)
                     .emit('receiveMessage', {
@@ -185,6 +263,32 @@ export class WebSocketServer {
                       messageIds: this.unreadMessages[message.receiverId],
                     });
                   this.unreadMessages[message.receiverId] = [];
+                  await this.chatSessionService.updateUnreadMessages(
+                    message.chatSessionId,
+                    this.unreadMessages,
+                    userId
+                  );
+
+                  const index = this.unseenChatSessions[
+                    message.receiverId
+                  ]?.indexOf(message.chatSessionId);
+                  if (index !== -1) {
+                    this.unseenChatSessions[message.receiverId]?.splice(
+                      index,
+                      1
+                    );
+                    await this.chatSessionService.markChatSessionAsSeen(
+                      message?.chatSessionId,
+                      userId
+                    );
+                    this.io
+                      .to(`user-${message.receiverId}`)
+                      .emit('conversationCount', {
+                        unseenConversations:
+                          this.unseenChatSessions[message.receiverId]?.length,
+                      });
+                  }
+
                   this.io
                     .to(`user-${message.receiverId}`)
                     .emit('notification', {
@@ -192,7 +296,7 @@ export class WebSocketServer {
                       data: {
                         id: message.chatSessionId,
                       },
-                      count: 0,
+                      unreadMessages: this.unreadMessages,
                     });
                 }
                 break;
@@ -222,9 +326,15 @@ export class WebSocketServer {
                             await this.messageService.getNewestMessage(
                               message.chatSessionId
                             );
-                          this.unreadMessages[message.receiverId].splice(
+                          this.unreadMessages[message.receiverId]?.splice(
                             index,
                             1
+                          );
+
+                          this.chatSessionService.updateUnreadMessages(
+                            message.chatSessionId,
+                            this.unreadMessages,
+                            userId
                           );
                           this.io
                             .to([
@@ -233,8 +343,7 @@ export class WebSocketServer {
                             ])
                             .emit('notification', {
                               type: 'updateChatListOnHardRemoval',
-                              count:
-                                this.unreadMessages[message.receiverId].length,
+                              unreadMessages: this.unreadMessages,
                               senderId: message.senderId,
                               data: {
                                 id: message.chatSessionId,

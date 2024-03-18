@@ -116,4 +116,17 @@ export class ChatSessionController {
       res.status(500).json({ error: 'Internal server error' });
     }
   };
+
+  getUnseenChatSessionCount = async (
+    _req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const count = await this.chatSessionService.getUnseenChatSessionCount();
+      res.json({ data: count });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
 }

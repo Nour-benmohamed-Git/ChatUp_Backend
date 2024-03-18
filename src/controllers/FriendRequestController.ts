@@ -1,18 +1,18 @@
 import { Request, Response } from 'express';
-import { NotificationService } from '../services/NotificationService';
+import { FriendRequestService } from '../services/FriendRequestService';
 
-export class NotificationController {
-  private notificationService: NotificationService;
+export class FriendRequestController {
+  private friendRequestService: FriendRequestService;
 
   constructor() {
-    this.notificationService = new NotificationService();
+    this.friendRequestService = new FriendRequestService();
   }
 
   getOwnFriendRequests = async (req: Request, res: Response): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
     try {
       const friendRequests =
-        await this.notificationService.getOwnFriendRequests(token);
+        await this.friendRequestService.getOwnFriendRequests(token);
       if (friendRequests.length === 0) {
         res.json({ data: [] });
       } else {
@@ -23,11 +23,11 @@ export class NotificationController {
     }
   };
 
-  createNotification = async (req: Request, res: Response): Promise<void> => {
+  createFriendRequest = async (req: Request, res: Response): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
     try {
       const { email } = req.body;
-      const friendRequest = await this.notificationService.createFriendRequest(
+      const friendRequest = await this.friendRequestService.createFriendRequest(
         token,
         email
       );
@@ -45,11 +45,11 @@ export class NotificationController {
     req: Request,
     res: Response
   ): Promise<void> => {
-    const friendRequestId = parseInt(req.params.notificationId);
+    const friendRequestId = parseInt(req.params.friendRequestId);
 
     try {
       const updatedRequest =
-        await this.notificationService.updateFiendRequestStatusToAccepted(
+        await this.friendRequestService.updateFiendRequestStatusToAccepted(
           friendRequestId
         );
       if (updatedRequest) {
@@ -66,10 +66,10 @@ export class NotificationController {
     req: Request,
     res: Response
   ): Promise<void> => {
-    const friendRequestId = parseInt(req.params.notificationId);
+    const friendRequestId = parseInt(req.params.friendRequestId);
     try {
       const updatedRequest =
-        await this.notificationService.updateFiendRequestStatusToDeclined(
+        await this.friendRequestService.updateFiendRequestStatusToDeclined(
           friendRequestId
         );
       if (updatedRequest) {
@@ -77,6 +77,20 @@ export class NotificationController {
       } else {
         res.status(404).json({ error: 'Friend request not found' });
       }
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
+
+  getUnseenFiendRequestsCount = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    const token = req.headers.authorization?.split(' ')[1];
+    try {
+      const count =
+        await this.friendRequestService.getUnseenFiendRequestsCount(token);
+      res.json({ data: count });
     } catch (error) {
       res.status(500).json({ error: 'Internal Server Error' });
     }

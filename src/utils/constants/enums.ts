@@ -4,7 +4,7 @@ export enum UserStatus {
   'INACTIVE',
 }
 
-export enum NotificationStatus {
+export enum FriendRequestStatus {
   'PENDING',
   'ACCEPTED',
   'DECLINED',

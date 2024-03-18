@@ -77,12 +77,20 @@ export class UserDAO {
     });
     const friend = await this.userRepository.findOne({
       where: { id: friendId },
+      relations: ['friends'],
     });
+
     if (user && friend) {
       const isAlreadyFriend = user.friends.some((f) => f.id === friend.id);
-      if (!isAlreadyFriend) {
+      const isAlreadyFriendOfFriend = friend.friends.some(
+        (f) => f.id === user.id
+      );
+
+      if (!isAlreadyFriend && !isAlreadyFriendOfFriend) {
         user.friends.push(friend);
+        friend.friends.push(user);
         await this.userRepository.save(user);
+        await this.userRepository.save(friend);
       }
       return user;
     }
@@ -101,18 +109,19 @@ export class UserDAO {
     });
 
     if (!user) {
-      return null;
+      return { friends: null, total: 0 };
     }
 
     let friends = user.friends;
 
-    // Apply search filter
+    // Apply search filter if search string is provided
     if (search) {
+      const searchQuery = search.toLowerCase(); // Convert search string to lowercase for case-insensitive search
       friends = friends.filter(
         (friend) =>
-          friend.username.includes(search) ||
-          friend.firstName.includes(search) ||
-          friend.lastName.includes(search)
+          friend.username.toLowerCase().includes(searchQuery) ||
+          friend.firstName.toLowerCase().includes(searchQuery) ||
+          friend.lastName.toLowerCase().includes(searchQuery)
       );
     }
 
@@ -120,8 +129,9 @@ export class UserDAO {
 
     // Apply pagination
     const startIndex = offset;
-    const endIndex = offset + limit;
+    const endIndex = Math.min(offset + limit, total); // Ensure endIndex doesn't exceed the total number of friends
     friends = friends.slice(startIndex, endIndex);
+
     return { friends, total };
   }
 
@@ -130,10 +140,28 @@ export class UserDAO {
       where: { id: userId },
       relations: ['friends'],
     });
+
     if (user) {
-      user.friends = user.friends.filter((friend) => friend.id !== friendId);
-      await this.userRepository.save(user);
-      return user;
+      const friendIndex = user.friends.findIndex(
+        (friend) => friend.id === friendId
+      );
+      if (friendIndex !== -1) {
+        const removedFriend = user.friends.splice(friendIndex, 1)[0];
+        // Remove user from the friend's friends list
+        const friend = await this.userRepository.findOne({
+          where: { id: friendId },
+          relations: ['friends'],
+        });
+        if (friend) {
+          const userIndex = friend.friends.findIndex((u) => u.id === userId);
+          if (userIndex !== -1) {
+            friend.friends.splice(userIndex, 1);
+            await this.userRepository.save(friend);
+          }
+        }
+        await this.userRepository.save(user);
+        return removedFriend;
+      }
     }
     return null;
   }

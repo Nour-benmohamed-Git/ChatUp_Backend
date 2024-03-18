@@ -23,5 +23,9 @@ chatSessionRouter.post(
   '/chat-sessions/:id',
   chatSessionController.deleteChatSession
 );
+chatSessionRouter.get(
+  '/current-user-unseen-chat-sessions',
+  chatSessionController.getUnseenChatSessionCount
+);
 
 export default chatSessionRouter;

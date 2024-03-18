@@ -63,18 +63,34 @@ export class ChatSessionService {
     const userId = getUserIdFromToken(token);
     const currentUser = await this.userDAO.getUser(userId);
     const secondMember = await this.userDAO.getUser(secondMemberId);
-    const chatSession = await this.chatSessionDAO.getChatSessionByParticipants([
-      userId,
-      secondMemberId,
-    ]);
-    if (chatSession) {
-      return await this.mapChatSessionToDTO(
-        {
-          ...chatSession,
-          participants: [currentUser, secondMember],
-        },
-        userId
-      );
+    let chatSession;
+    if (userId === secondMemberId) {
+      chatSession = await this.chatSessionDAO.getChatSessionByParticipants([
+        userId,
+      ]);
+      if (chatSession) {
+        return await this.mapChatSessionToDTO(
+          {
+            ...chatSession,
+            participants: [currentUser],
+          },
+          userId
+        );
+      }
+    } else {
+      chatSession = await this.chatSessionDAO.getChatSessionByParticipants([
+        userId,
+        secondMemberId,
+      ]);
+      if (chatSession) {
+        return await this.mapChatSessionToDTO(
+          {
+            ...chatSession,
+            participants: [currentUser, secondMember],
+          },
+          userId
+        );
+      }
     }
     return null;
   }
@@ -83,15 +99,20 @@ export class ChatSessionService {
     secondMemberId: number,
     token: string
   ): Promise<ChatSessionDTO | null> {
-    const userId = getUserIdFromToken(token);
     try {
+      const userId = getUserIdFromToken(token);
       const currentUser = await this.userDAO.getUser(userId);
       const secondMember = await this.userDAO.getUser(secondMemberId);
-
-      const createdChatSession = await this.chatSessionDAO.createChatSession({
-        participants: [currentUser, secondMember],
-      });
-
+      let createdChatSession;
+      if (userId === secondMemberId) {
+        createdChatSession = await this.chatSessionDAO.createChatSession({
+          participants: [currentUser],
+        });
+      } else {
+        createdChatSession = await this.chatSessionDAO.createChatSession({
+          participants: [currentUser, secondMember],
+        });
+      }
       if (!createdChatSession) {
         console.error('Failed to create chat session');
         return null;
@@ -147,6 +168,45 @@ export class ChatSessionService {
 
     return null;
   }
+
+  async updateUnreadMessages(
+    chatSessionId: number,
+    unreadMessages: { [userId: number]: number[] },
+    userId: number
+  ): Promise<ChatSessionDTO | null> {
+    try {
+      const updatedChatSession = await this.chatSessionDAO.updateUnreadMessages(
+        chatSessionId,
+        unreadMessages
+      );
+      return await this.mapChatSessionToDTO(updatedChatSession, userId);
+    } catch (error) {
+      console.error('Error updating unread messages:', error);
+      return null;
+    }
+  }
+  async getUnseenChatSessionCount(): Promise<number> {
+    try {
+      return await this.chatSessionDAO.getUnseenChatSessionCount();
+    } catch (error) {
+      console.error('Error getting unseen chat session count:', error);
+      throw error;
+    }
+  }
+
+  async markChatSessionAsSeen(
+    chatSessionId: number,
+    userId: number
+  ): Promise<ChatSessionDTO | null> {
+    try {
+      const chatSession =
+        await this.chatSessionDAO.markChatSessionAsSeen(chatSessionId);
+      return await this.mapChatSessionToDTO(chatSession, userId);
+    } catch (error) {
+      console.error('Error marking chat session as seen:', error);
+      throw error;
+    }
+  }
   private async mapChatSessionToDTO(
     chatSession: Partial<ChatSession>,
     currentUserId: number
@@ -161,6 +221,8 @@ export class ChatSessionService {
       );
     return {
       id: chatSession.id,
+      unreadMessages: chatSession.unreadMessages,
+      seen: chatSession.seen,
       title: getChatSessionTitle(chatSession, currentUserId),
       image: getChatSessionImage(chatSession, currentUserId),
       participantsData: chatSession?.participants?.reduce(

@@ -86,8 +86,8 @@ export class AuthService {
     if (!userId) {
       throw new Error('Invalid token');
     }
-    const user = await this.userDAO.removeFriend(userId, friendId);
-    return user ? new UserDTO(user) : null;
+    const removedFriend = await this.userDAO.removeFriend(userId, friendId);
+    return removedFriend ? new UserDTO(removedFriend) : null;
   }
 
   async getOwnFriends(

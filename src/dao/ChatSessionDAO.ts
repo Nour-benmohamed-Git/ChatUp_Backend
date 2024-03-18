@@ -25,29 +25,6 @@ export class ChatSessionDAO {
     });
   }
 
-  // async getChatSessionsByUserId(
-  //   userId: number,
-  //   offset: number,
-  //   limit: number
-  // ): Promise<{ chatSessions: ChatSession[]; total: number }> {
-  //   const [chatSessions, total] = await this.chatSessionRepository
-  //     .createQueryBuilder('chatSession')
-  //     .leftJoinAndSelect('chatSession.participants', 'participant')
-  //     .leftJoin('chatSession.deletedChatSessions', 'deletedChatSession')
-  //     .where(
-  //       'chatSession.id IN ' +
-  //         '(SELECT cs.id FROM chat_session cs ' +
-  //         'JOIN chat_session_participants_user cspu ON cs.id = cspu.chatSessionId ' +
-  //         'WHERE cspu.userId = :userId)' +
-  //         'AND (deletedChatSession.id IS NULL OR deletedChatSession.user.id <> :userId)', // Compare against a specific column of DeletedChatSession
-  //       { userId }
-  //     )
-  //     .skip(offset)
-  //     .take(limit)
-  //     .getManyAndCount();
-
-  //   return { chatSessions, total };
-  // }
   async getChatSessionsByUserId(
     userId: number,
     offset: number,
@@ -75,13 +52,43 @@ export class ChatSessionDAO {
     return { chatSessions, total };
   }
 
+  // async getChatSessionsByUserId(
+  //   userId: number,
+  //   offset: number,
+  //   limit: number,
+  //   search: string
+  // ): Promise<{ chatSessions: ChatSession[]; total: number }> {
+  //   const queryBuilder = this.chatSessionRepository
+  //     .createQueryBuilder('chatSession')
+  //     .innerJoin('chatSession.participants', 'participant')
+  //     .innerJoinAndSelect('chatSession.participants', 'otherParticipant')
+  //     .leftJoin(
+  //       'chatSession.deletedChatSessions',
+  //       'deletedChatSession',
+  //       'deletedChatSession.user.id <> :userId',
+  //       { userId }
+  //     )
+  //     .where(
+  //       'participant.id <> :userId AND participant.username LIKE :search',
+  //       {
+  //         userId,
+  //         search: `%${search}%`,
+  //       }
+  //     );
+
+  //   const [chatSessions, total] = await queryBuilder
+  //     .skip(offset)
+  //     .take(limit)
+  //     .getManyAndCount();
+  //   return { chatSessions, total };
+  // }
+
   async getChatSessionByParticipants(
     participantIds: number[]
   ): Promise<ChatSession | null> {
-    const isSameParticipants = new Set(participantIds).size === 1;
     let chatSession;
     try {
-      if (isSameParticipants) {
+      if (participantIds.length === 1) {
         const uniqueChatSessions = await this.chatSessionRepository
           .createQueryBuilder('chatSession')
           .innerJoin('chatSession.participants', 'participant')
@@ -181,5 +188,68 @@ export class ChatSessionDAO {
       return chatSessionToDelete;
     }
     return null;
+  }
+
+  async updateUnreadMessages(
+    chatSessionId: number,
+    unreadMessages: { [userId: number]: number[] }
+  ): Promise<ChatSession | null> {
+    try {
+      const chatSession = await this.chatSessionRepository.findOne({
+        where: { id: chatSessionId },
+      });
+      if (!chatSession) {
+        return null;
+      }
+
+      // const updatedUnreadMessages = Object.fromEntries(
+      //   Object.entries(unreadMessages).map(([userId, messages]) => [
+      //     userId,
+      //     messages.length,
+      //   ])
+      // );
+
+      chatSession.unreadMessages = unreadMessages;
+
+      const updatedChatSession =
+        await this.chatSessionRepository.save(chatSession);
+      return updatedChatSession;
+    } catch (error) {
+      console.error('Error updating unread messages:', error);
+      throw error;
+    }
+  }
+  async getUnseenChatSessionCount(): Promise<number> {
+    try {
+      const unseenChatSessions = await this.chatSessionRepository.find({
+        where: { seen: false }
+      });
+      return unseenChatSessions.length;
+    } catch (error) {
+      console.error('Error fetching unseen chat sessions:', error);
+      throw error;
+    }
+  }
+
+  async markChatSessionAsSeen(
+    chatSessionId: number
+  ): Promise<ChatSession | null> {
+    try {
+      const chatSession = await this.chatSessionRepository.findOne({
+        where: { id: chatSessionId },
+      });
+      if (!chatSession) {
+        return null;
+      }
+
+      chatSession.seen = true;
+
+      const updatedChatSession =
+        await this.chatSessionRepository.save(chatSession);
+      return updatedChatSession;
+    } catch (error) {
+      console.error('Error marking chat session as seen:', error);
+      throw error;
+    }
   }
 }

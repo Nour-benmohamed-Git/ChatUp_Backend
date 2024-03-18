@@ -1,26 +1,32 @@
-import { ChatSessionDAO } from '../dao/ChatSessionDAO';
-import { NotificationDAO } from '../dao/NotificationDAO';
+import { FriendRequestDAO } from '../dao/FriendRequestDAO';
 import { UserDAO } from '../dao/UserDAO';
-import { NotificationDTO } from '../dto/NotificationDTO';
+import { FriendRequestDTO } from '../dto/FriendRequestDTO';
 import { getUserIdFromToken } from '../utils/helpers/jwtHepers';
 
-export class NotificationService {
-  private notificationDAO: NotificationDAO;
+export class FriendRequestService {
+  private friendRequestDAO: FriendRequestDAO;
   private userDAO: UserDAO;
-  private chatSessionDAO: ChatSessionDAO;
   constructor() {
-    this.notificationDAO = new NotificationDAO();
+    this.friendRequestDAO = new FriendRequestDAO();
     this.userDAO = new UserDAO();
-    this.chatSessionDAO = new ChatSessionDAO();
   }
-  async getOwnFriendRequests(token: string): Promise<NotificationDTO[]> {
+  async getOwnFriendRequests(token: string): Promise<FriendRequestDTO[]> {
     const userId = getUserIdFromToken(token);
-    return this.notificationDAO.getFriendRequestsByUserId(userId);
+    const friendRequests =
+      await this.friendRequestDAO.getFriendRequestsByUserId(userId);
+    try {
+      const friendRequestsDTO = friendRequests?.map(
+        (friendRequest) => new FriendRequestDTO(friendRequest)
+      );
+      return friendRequestsDTO;
+    } catch (error) {
+      console.log(error);
+    }
   }
   async createFriendRequest(
     token: string,
     friendIdentifier: string
-  ): Promise<NotificationDTO | null> {
+  ): Promise<FriendRequestDTO | null> {
     const userId = getUserIdFromToken(token);
     try {
       const currentUser = await this.userDAO.getUser(userId);
@@ -30,7 +36,7 @@ export class NotificationService {
         return null;
       }
       const createdNotification =
-        await this.notificationDAO.createFriendRequest({
+        await this.friendRequestDAO.createFriendRequest({
           sender: currentUser,
           receiver: secondMember,
           title: currentUser.username,
@@ -41,7 +47,7 @@ export class NotificationService {
         console.error('Failed to create friend request');
         return null;
       }
-      return new NotificationDTO(createdNotification);
+      return new FriendRequestDTO(createdNotification);
     } catch (error) {
       console.error('Error while creating a friend request', error);
       return null;
@@ -50,27 +56,35 @@ export class NotificationService {
 
   async updateFiendRequestStatusToAccepted(
     id: number
-  ): Promise<NotificationDTO> {
+  ): Promise<FriendRequestDTO> {
     const friendRequestData =
-      await this.notificationDAO.updateFiendRequestStatusToAccepted(id);
+      await this.friendRequestDAO.updateFiendRequestStatusToAccepted(id);
 
     if (friendRequestData) {
       await this.userDAO.addFriend(
         friendRequestData.receiver.id,
         friendRequestData.sender.id
       );
-      return new NotificationDTO(friendRequestData);
+      return new FriendRequestDTO(friendRequestData);
     }
     return null;
   }
   async updateFiendRequestStatusToDeclined(
     id: number
-  ): Promise<NotificationDTO> {
+  ): Promise<FriendRequestDTO> {
     const friendRequestData =
-      await this.notificationDAO.updateFiendRequestStatusToDeclined(id);
+      await this.friendRequestDAO.updateFiendRequestStatusToDeclined(id);
     if (friendRequestData) {
-      return new NotificationDTO(friendRequestData);
+      return new FriendRequestDTO(friendRequestData);
     }
     return null;
+  }
+  async markFriendRequestsAsSeen(notificationIds: number[]): Promise<void> {
+    await this.friendRequestDAO.markFriendRequestsAsSeen(notificationIds);
+  }
+
+  async getUnseenFiendRequestsCount(token: string): Promise<number> {
+    const userId = getUserIdFromToken(token);
+    return this.friendRequestDAO.getUnseenFriendRequestsCount(userId);
   }
 }

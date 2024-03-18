@@ -36,6 +36,11 @@ export class MessageController {
   ): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
     const chatSessionId = Number.parseInt(req.params.id, 10);
+    console.log(chatSessionId);
+    if (chatSessionId === 0) {
+      res.json({ data: [] });
+      return;
+    }
     try {
       const messages = await this.messageService.getMessagesByChatSessionId(
         chatSessionId,

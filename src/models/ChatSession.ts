@@ -33,6 +33,12 @@ export class ChatSession {
   @Column({ type: 'bigint' })
   lastActiveDate: number;
 
+  @Column('simple-json', { nullable: true })
+  unreadMessages: { [userId: number]: number[] };
+
+  @Column({ default: false })
+  seen: boolean;
+
   @BeforeInsert()
   beforeInsert() {
     this.creationDate = toUnixTimestamp(new Date());

@@ -10,4 +10,6 @@ export class ChatSessionDTO {
     timestamp: number;
   };
   deletedByCurrentUser?: boolean;
+  unreadMessages?: { [userId: number]: number[] };
+  seen?: boolean;
 }

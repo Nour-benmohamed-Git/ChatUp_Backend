@@ -11,10 +11,10 @@ import {
 import { UserStatus } from '../utils/constants/enums';
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { ChatSession } from './ChatSession';
-import { Message } from './Message';
-import { Notification } from './Notification';
-import { Group } from './Group';
 import { DeletedChatSession } from './DeletedChatSession';
+import { FriendRequest } from './FriendRequest';
+import { Group } from './Group';
+import { Message } from './Message';
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -60,14 +60,14 @@ export class User {
   @Column({ type: 'bigint' })
   updatedAt: number;
 
-  @ManyToMany(() => User, user => user.friends)
+  @ManyToMany(() => User, (user) => user.friends)
   @JoinTable()
   friends: User[];
 
   @OneToMany(() => Message, (message) => message.sender)
   sentMessages: Message[];
 
-  @OneToMany(() => ChatSession, (chatSession) => chatSession.participants)
+  @ManyToMany(() => ChatSession)
   chatSessions: ChatSession[];
 
   @ManyToMany(() => Group, (group) => group.members)
@@ -75,8 +75,8 @@ export class User {
   @JoinTable()
   groups: Group[];
 
-  @OneToMany(() => Notification, (notification) => notification.receiver)
-  notifications: Notification[];
+  @OneToMany(() => FriendRequest, (friendRequest) => friendRequest.receiver)
+  friendRequests: FriendRequest[];
 
   @BeforeInsert()
   beforeInsert() {

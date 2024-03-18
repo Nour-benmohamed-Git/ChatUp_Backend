@@ -6,12 +6,12 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { NotificationStatus } from '../utils/constants/enums';
 import { toUnixTimestamp } from '../utils/helpers/dateHelpers';
 import { User } from './User';
+import { FriendRequestStatus } from '../utils/constants/enums';
 
 @Entity()
-export class Notification {
+export class FriendRequest {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -20,6 +20,9 @@ export class Notification {
 
   @Column({ nullable: true })
   image: string;
+
+  @Column({ default: false })
+  seen: boolean;
 
   @Column({ type: 'bigint' })
   timestamp: number;
@@ -34,10 +37,10 @@ export class Notification {
 
   @Column({
     type: 'enum',
-    enum: NotificationStatus,
-    default: NotificationStatus.PENDING,
+    enum: FriendRequestStatus,
+    default: FriendRequestStatus.PENDING,
   })
-  status: NotificationStatus;
+  status: FriendRequestStatus;
 
   @BeforeInsert()
   beforeInsert() {
